@@ -20,12 +20,12 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+// List of blocked threads sorted by tick count
+static struct list blocked_list;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
-
-// Waiting/blocked queue for threads organized by tick count
-struct list wait_list;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
@@ -39,6 +39,8 @@ void timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  // we put this here right?
+  list_init(&blocked_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -81,6 +83,24 @@ int64_t timer_ticks (void)
    should be a value once returned by timer_ticks(). */
 int64_t timer_elapsed (int64_t then) { return timer_ticks () - then; }
 
+
+// was i supposed to create this custom struct?
+struct blocked_entry {
+  struct semaphore sema;
+  int64_t timer_end;
+  struct list_elem elem;
+};
+
+static bool value_less (const struct list_elem *a_, const struct list_elem *b_,
+                        void *aux UNUSED)
+{
+  const struct blocked_entry *a = list_entry (a_, struct blocked_entry, elem);
+  const struct blocked_entry *b = list_entry (b_, struct blocked_entry, elem);
+  return a->timer_end < b->timer_end;
+}
+
+// pintos run alarm-multiple > /dev/null
+
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void timer_sleep (int64_t ticks)
@@ -88,20 +108,16 @@ void timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
   struct semaphore sema;
   int val = 0;
-  sema_init(&sema, val);
+  sema_init (&sema, val);
 
-  ASSERT (intr_get_level () == INTR_ON);
-  sema_down(&sema);
+  sema_down (&sema);
 
-  while (timer_elapsed (start) < ticks) {
+  struct blocked_entry entry;
+  entry.sema = sema;
+  entry.timer_end = start + ticks;
 
-  }
-
-  sema_up(&sema);
-
-
-  while (timer_elapsed (start) < ticks)
-    thread_yield ();
+  // is this a critical section?
+  list_insert_ordered (&blocked_list, &entry.elem, value_less, NULL);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -153,6 +169,20 @@ void timer_print_stats (void)
 static void timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  // iterate through list of blocked threads, call sema_up on threads that are done sleeping
+  struct list_elem *e = list_begin (&blocked_list);
+  struct blocked_entry *entry;
+  // access ticks directly or use timer_ticks()?
+  while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end < ticks)
+  {
+    entry = list_entry (e, struct blocked_entry, elem);
+    sema_up(&entry->sema);
+    // is this a critical section?
+    e = list_remove (e);
+  }
+
+  // still not sure what this function does
   thread_tick ();
 }
 
