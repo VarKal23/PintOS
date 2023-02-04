@@ -105,17 +105,21 @@ static bool value_less (const struct list_elem *a_, const struct list_elem *b_,
    be turned on. */
 void timer_sleep (int64_t ticks)
 {
-  int64_t start = timer_ticks ();
-  struct semaphore sema;
-  int val = 0;
-  sema_init (&sema, val);
+  
+  // Handles negative/0 sleep cases
+  if (ticks <= 0) {
+    return;
+  }
 
+  struct semaphore sema;
+  sema_init (&sema, 0);
   sema_down (&sema);
 
+  int64_t start = timer_ticks ();
   struct blocked_entry entry;
   entry.sema = sema;
   entry.timer_end = start + ticks;
-
+  
   // is this a critical section?
   list_insert_ordered (&blocked_list, &entry.elem, value_less, NULL);
 }
@@ -169,21 +173,23 @@ void timer_print_stats (void)
 static void timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  // still not sure what this function does
+  thread_tick ();
 
   // iterate through list of blocked threads, call sema_up on threads that are done sleeping
   struct list_elem *e = list_begin (&blocked_list);
   struct blocked_entry *entry;
+
   // access ticks directly or use timer_ticks()?
   while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end < ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
     sema_up(&entry->sema);
+
     // is this a critical section?
     e = list_remove (e);
   }
 
-  // still not sure what this function does
-  thread_tick ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
