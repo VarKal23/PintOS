@@ -24,6 +24,9 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
+// Waiting/blocked queue for threads organized by tick count
+struct list wait_list;
+
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
@@ -83,8 +86,20 @@ int64_t timer_elapsed (int64_t then) { return timer_ticks () - then; }
 void timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
+  struct semaphore sema;
+  int val = 0;
+  sema_init(&sema, val);
 
   ASSERT (intr_get_level () == INTR_ON);
+  sema_down(&sema);
+
+  while (timer_elapsed (start) < ticks) {
+
+  }
+
+  sema_up(&sema);
+
+
   while (timer_elapsed (start) < ticks)
     thread_yield ();
 }
