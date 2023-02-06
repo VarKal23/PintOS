@@ -199,6 +199,10 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (thread_current ()->priority < priority) {
+    thread_yield ();
+  }
+
   return tid;
 }
 
@@ -234,10 +238,13 @@ void thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
-  // list_insert_ordered (&ready_list, &t->elem, priority_less, NULL);
-  // if (thread_current ()->priority < t->priority)
-  //   thread_yield();
+  list_insert_ordered (&ready_list, &t->elem, priority_less, NULL);
+  // why does the code break here but not in thread_create?
+  // in general i just don't get when you have to disable and enable interrupts
+  // and what the interrupt context is
+  // if (thread_current ()->priority < t->priority) {
+  //   thread_yield ();
+  // }
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -304,9 +311,9 @@ void thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread)
-    list_push_back (&ready_list, &cur->elem);
-    // list_insert_ordered (&ready_list, &cur->elem, priority_less, NULL);
+  if (cur != idle_thread) {
+    list_insert_ordered (&ready_list, &cur->elem, &priority_less, NULL);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -332,12 +339,12 @@ void thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
   // list might be empty, in which case keep the current process running
-  // if (!list_empty(&ready_list)) {
-  //   struct thread *next_thread = list_entry (list_begin (&ready_list), struct thread, elem);
-  //   if (thread_current ()->priority < next_thread->priority) {
-  //     thread_yield ();
-  //   }
-  // }
+  if (!list_empty (&ready_list)) {
+    struct thread *next_thread = list_entry (list_begin (&ready_list), struct thread, elem);
+    if (thread_current ()->priority < next_thread->priority) {
+      thread_yield ();
+    }
+  }
 }
 
 /* Returns the current thread's priority. */
