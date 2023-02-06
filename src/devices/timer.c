@@ -206,8 +206,6 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
     // printf("\n");
     // printf("%p ", list_end (&blocked_list));
 
-    printf("%p ", e);
-
     sema_up(entry->sema);
     // is this a critical section?
     e = list_remove (e);
