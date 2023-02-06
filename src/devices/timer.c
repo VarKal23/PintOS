@@ -192,14 +192,10 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   struct list_elem *e = list_begin (&blocked_list);
   struct blocked_entry *entry;
 
-  // printf("CURRENT TIME: %d", ticks);
-
   // access ticks directly or use timer_ticks()?
   while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end < ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
-    // printf("%d ", entry->timer_end);
-    // printf("%d \n", entry->sema.value);
 
     sema_up(&entry->sema);
     // is this a critical section?
