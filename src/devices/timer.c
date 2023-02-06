@@ -120,8 +120,10 @@ void timer_sleep (int64_t ticks)
   entry.sema = &sema;
   entry.timer_end = start + ticks;
   
-  // is this a critical section?
+  // this is a critical section
+  enum intr_level old_level = intr_disable ();
   list_insert_ordered (&blocked_list, &entry.elem, ticks_less, NULL);
+  intr_set_level (old_level);
   
   // struct list_elem *e = list_head (&blocked_list);
   // struct blocked_entry *cur_entry;

@@ -70,8 +70,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool priority_less (const struct list_elem *a_, 
-                          const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -249,7 +247,7 @@ void thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-static bool priority_less (const struct list_elem *a_, const struct list_elem *b_,
+bool priority_less (const struct list_elem *a_, const struct list_elem *b_,
                         void *aux UNUSED)
 {
   const struct thread *a = list_entry (a_, struct thread, elem);
