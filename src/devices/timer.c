@@ -113,7 +113,6 @@ void timer_sleep (int64_t ticks)
 
   struct semaphore sema;
   sema_init (&sema, 0);
-  sema_down (&sema);
 
   int64_t start = timer_ticks ();
   struct blocked_entry entry;
@@ -122,6 +121,19 @@ void timer_sleep (int64_t ticks)
   
   // is this a critical section?
   list_insert_ordered (&blocked_list, &entry.elem, value_less, NULL);
+  
+  // struct list_elem *e = list_head (&blocked_list);
+  // struct blocked_entry *cur_entry;
+  // printf("Current time: %d \n", start);
+  // while ((e = list_next (e)) != list_end (&blocked_list))
+  // {
+  //   cur_entry = list_entry (e, struct blocked_entry, elem);
+  //   printf("%d ", entry.timer_end);
+  //   printf("%d ", entry.sema.value);
+  // }
+  // printf("\n");
+
+  sema_down (&sema);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -180,12 +192,16 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   struct list_elem *e = list_begin (&blocked_list);
   struct blocked_entry *entry;
 
+  // printf("CURRENT TIME: %d", ticks);
+
   // access ticks directly or use timer_ticks()?
   while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end < ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
-    sema_up(&entry->sema);
+    // printf("%d ", entry->timer_end);
+    // printf("%d \n", entry->sema.value);
 
+    sema_up(&entry->sema);
     // is this a critical section?
     e = list_remove (e);
   }
