@@ -86,7 +86,7 @@ int64_t timer_elapsed (int64_t then) { return timer_ticks () - then; }
 
 // was i supposed to create this custom struct?
 struct blocked_entry {
-  struct semaphore sema;
+  struct semaphore *sema;
   int64_t timer_end;
   struct list_elem elem;
 };
@@ -116,7 +116,7 @@ void timer_sleep (int64_t ticks)
 
   int64_t start = timer_ticks ();
   struct blocked_entry entry;
-  entry.sema = sema;
+  entry.sema = &sema;
   entry.timer_end = start + ticks;
   
   // is this a critical section?
@@ -124,12 +124,11 @@ void timer_sleep (int64_t ticks)
   
   // struct list_elem *e = list_head (&blocked_list);
   // struct blocked_entry *cur_entry;
-  // printf("Current time: %d \n", start);
+  // printf("Current time: %d \n", timer_ticks());
   // while ((e = list_next (e)) != list_end (&blocked_list))
   // {
   //   cur_entry = list_entry (e, struct blocked_entry, elem);
-  //   printf("%d ", entry.timer_end);
-  //   printf("%d ", entry.sema.value);
+  //   printf("%d ", cur_entry->timer_end);
   // }
   // printf("\n");
 
@@ -193,11 +192,23 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   struct blocked_entry *entry;
 
   // access ticks directly or use timer_ticks()?
-  while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end < ticks)
+  while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end <= ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
 
-    sema_up(&entry->sema);
+    // printf("%p ", list_head (&blocked_list));
+    // struct list_elem *cur_e = list_head (&blocked_list);
+    // while ((cur_e = list_next (cur_e)) != list_end (&blocked_list))
+    // {
+    //   printf("%p ", cur_e);
+    //   printf("%d ", list_entry (cur_e, struct blocked_entry, elem)->timer_end);
+    // }
+    // printf("\n");
+    // printf("%p ", list_end (&blocked_list));
+
+    printf("%p ", e);
+
+    sema_up(entry->sema);
     // is this a critical section?
     e = list_remove (e);
   }
