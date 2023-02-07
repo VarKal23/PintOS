@@ -156,6 +156,8 @@ void thread_print_stats (void)
    scheduled.  Use a semaphore or some other form of
    synchronization if you need to ensure ordering.
 
+  //  what does the above comment mean?
+
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
@@ -236,10 +238,9 @@ void thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, priority_less, NULL);
+  list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
   // why does the code break here but not in thread_create?
-  // in general i just don't get when you have to disable and enable interrupts
-  // and what the interrupt context is
+  // what is the interrupt context
   // if (thread_current ()->priority < t->priority) {
   //   thread_yield ();
   // }
@@ -247,12 +248,24 @@ void thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-bool priority_less (const struct list_elem *a_, const struct list_elem *b_,
+bool priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
                         void *aux UNUSED)
 {
   const struct thread *a = list_entry (a_, struct thread, elem);
   const struct thread *b = list_entry (b_, struct thread, elem);
   return a->priority > b->priority;
+}
+
+void donate_priority (struct thread *t,  int new_priority) 
+{
+  enum intr_level old_level;
+  // thread_set_priority() can only set the priority of the current thread
+  // you could also call thread_current()->priority to get the new priority
+  t->priority = new_priority;
+  old_level = intr_disable ();
+  list_remove (&t->elem);
+  list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
+  intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -310,7 +323,7 @@ void thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) {
-    list_insert_ordered (&ready_list, &cur->elem, &priority_less, NULL);
+    list_insert_ordered (&ready_list, &cur->elem, &priority_comparator, NULL);
   }
   cur->status = THREAD_READY;
   schedule ();
@@ -456,6 +469,7 @@ static void init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->original_priority = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();

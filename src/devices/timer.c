@@ -92,7 +92,7 @@ struct blocked_entry {
   struct list_elem elem;
 };
 
-static bool ticks_less (const struct list_elem *a_, const struct list_elem *b_,
+static bool ticks_comparator (const struct list_elem *a_, const struct list_elem *b_,
                         void *aux UNUSED)
 {
   const struct blocked_entry *a = list_entry (a_, struct blocked_entry, elem);
@@ -112,6 +112,8 @@ void timer_sleep (int64_t ticks)
     return;
   }
 
+  enum intr_level old_level;
+
   struct semaphore sema;
   sema_init (&sema, 0);
 
@@ -121,8 +123,8 @@ void timer_sleep (int64_t ticks)
   entry.timer_end = start + ticks;
   
   // this is a critical section
-  enum intr_level old_level = intr_disable ();
-  list_insert_ordered (&blocked_list, &entry.elem, ticks_less, NULL);
+  old_level = intr_disable ();
+  list_insert_ordered (&blocked_list, &entry.elem, &ticks_comparator, NULL);
   intr_set_level (old_level);
   
   // struct list_elem *e = list_head (&blocked_list);
@@ -199,7 +201,7 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   {
     entry = list_entry (e, struct blocked_entry, elem);
     sema_up(entry->sema);
-    // is this a critical section?
+    // no need to disable interrupts here because multiple threads will not be running timer_interrupt
     e = list_remove (e);
   }
 

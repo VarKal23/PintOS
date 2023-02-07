@@ -67,7 +67,7 @@ void sema_down (struct semaphore *sema)
   while (sema->value == 0)
     {
       // list_push_back (&sema->waiters, &thread_current ()->elem);
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, priority_less, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, &priority_comparator, NULL);
       thread_block ();
     }
   sema->value--;
@@ -111,8 +111,12 @@ void sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    thread_unblock (
-        list_entry (list_pop_front (&sema->waiters), struct thread, elem));
+    struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+    thread_unblock (next_thread);
+    // again, why does the code break here but not in thread_create?
+    // if (thread_current ()->priority < next_thread->priority) {
+    //   thread_yield ();
+    // }
   }
   sema->value++;
   intr_set_level (old_level);
@@ -190,6 +194,10 @@ void lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  // if (lock->holder && lock->holder->priority < thread_current ()->priority) {
+  //   donate_priority(lock->holder, thread_current ()->priority);
+  // }
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }
@@ -223,6 +231,9 @@ void lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  // so it's important that we immediately yield if it no longer has the highest
+  // priority after recalling the donation
+  // thread_set_priority(thread_current ()->original_priority);
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
