@@ -472,6 +472,10 @@ static void init_thread (struct thread *t, const char *name, int priority)
   t->original_priority = priority;
   t->magic = THREAD_MAGIC;
 
+  // Donation Solution
+  t->lock_waiting = NULL;
+  t->locks_held = NULL;
+  
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

@@ -203,9 +203,45 @@ void lock_acquire (struct lock *lock)
   // if (lock->holder && lock->holder->priority < thread_current ()->priority) {
   //   donate_priority(lock->holder, thread_current ()->priority);
   // }
+  /*Strategy Planning
+      *Need to form a sort of chain/series of events, maybe in a while loop?, to ensure thread with lock has 
+      highest priority poosible
+      * need to have sema waiters list sorted by priority and insert by priority
+      * when lock acquire is called, if it's already held, add thread to waiters and if it's the new highest priority/front
+      * of waiters compare it against holders priority and set holders equal to new highest if it's less than it
+      * 
+      * When releasing a lock, priority needs to be set to next highest among the locks it holds from semawaiters list
+      * or just original priority if no more locks held
+      * Update holder to be next thread in semawaiters
+      * 
+      * maybe have a max priority variable per lock that updates upon sema waiter changes? not needed maybe?
+      * create list of locks held for each thread
+      * need to have original priority variable to store old priority
+      */
+  if (lock->holder != NULL) {
+    struct thread* cur_thread = thread_current();
+    cur_thread->lock_waiting = lock;
+    struct thread* next_thread = lock->holder;
+
+    // Chaining together threads/locks through requests in order to donate highest priority up chain
+    while (next_thread != NULL) {
+      // ENABLE disable interrupts?
+      list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, (list_less_func*)&priority_comparator, NULL);
+      if (cur_thread->priority > next_thread->priority) {
+        // USE donate functions or manually set next_thread priority?
+        donate_priority(next_thread, cur_thread->priority);
+      }
+      cur_thread = next_thread;
+      next_thread = cur_thread->lock_waiting->holder;
+    }
+  }
 
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  struct thread* holding_thread = thread_current();
+  holding_thread->lock_waiting = NULL;
+  lock->holder = holding_thread;
+  // FIX I think, need to insert current lock into locks held list
+  list_insert(holding_thread->locks_held, &holding_thread->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -237,6 +273,22 @@ void lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   // thread_set_priority(thread_current ()->original_priority);
+
+  struct thread* cur_thread = thread_current();
+  if (!list_empty(cur_thread->locks_held)) {
+    
+    // FIX, need to find lock with highest held thread priority and replace, maybe sort locks held by priority of holding thread?
+    struct thread* highest_thread = list_entry(list_front());
+    if (cur_thread->original_priority < highest_thread->priority) {
+      cur_thread->priority = highest_thread->priority;
+    } else {
+      cur_thread->priority = cur_thread->original_priority;
+    }
+
+    // ENABLE disable interrupts?
+    // NEED to remove lock from list of locks held in cur thread struct
+    list_remove(&cur_thread->);
+  }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
