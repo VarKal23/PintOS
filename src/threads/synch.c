@@ -110,15 +110,21 @@ void sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+  sema->value++;
   if (!list_empty (&sema->waiters)) {
     struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
     thread_unblock (next_thread);
-    // again, why does the code break here but not in thread_create?
-    // if (thread_current ()->priority < next_thread->priority) {
-    //   thread_yield ();
-    // }
+    if (thread_current ()->priority < next_thread->priority) {
+      // an intr_context means that this function was called by an external interrupt like timer interrupt
+      // timer interrupts actually get run by the same thread that was executing immediately before
+      // so we should not immediately yield!! we should finish executing the interrupt first
+      if (intr_context ())
+        intr_yield_on_return ();
+      else
+        thread_yield ();
+    }
   }
-  sema->value++;
+  
   intr_set_level (old_level);
 }
 
@@ -230,9 +236,6 @@ void lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
-  // so it's important that we immediately yield if it no longer has the highest
-  // priority after recalling the donation
   // thread_set_priority(thread_current ()->original_priority);
   lock->holder = NULL;
   sema_up (&lock->semaphore);
