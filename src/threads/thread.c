@@ -256,7 +256,7 @@ bool priority_comparator (const struct list_elem *a_, const struct list_elem *b_
   return a->priority > b->priority;
 }
 
-void donate_priority (struct thread *t,  int new_priority) 
+void update_priority (struct thread *t,  int new_priority) 
 {
   enum intr_level old_level;
   // thread_set_priority() can only set the priority of the current thread

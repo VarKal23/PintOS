@@ -32,6 +32,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
+                        void *aux UNUSED);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -226,11 +229,14 @@ void lock_acquire (struct lock *lock)
 
     // Chaining together threads/locks through requests in order to donate highest priority up chain
     while (next_thread != NULL) {
-      // ENABLE disable interrupts?
+      enum intr_level old_level;
+      old_level = intr_disable ();
       list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, &priority_comparator, NULL);
+      intr_set_level (old_level);
+
       if (cur_thread->priority > next_thread->priority) {
         // USE donate functions or manually set next_thread priority?
-        donate_priority(next_thread, cur_thread->priority);
+        update_priority(next_thread, cur_thread->priority);
       }
       cur_thread = next_thread;
       next_thread = cur_thread->lock_waiting->holder;
@@ -245,8 +251,8 @@ void lock_acquire (struct lock *lock)
   list_insert_ordered(holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
 }
 
-bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
-                        void *aux (UNUSED))
+static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_, 
+                              void* aux UNUSED)
 {
   const struct lock *a = list_entry (a_, struct lock, elem);
   const struct lock *b = list_entry (b_, struct lock, elem);
@@ -284,25 +290,27 @@ void lock_release (struct lock *lock)
   // thread_set_priority(thread_current ()->original_priority);
 
   struct thread* cur_thread = thread_current();
+  enum intr_level old_level;
+  old_level = intr_disable ();
   list_remove(&lock->elem);
+  intr_set_level (old_level);
   if (!list_empty(cur_thread->locks_held)) {
     
     // FIX, need to find lock with highest held thread priority and replace, maybe sort locks held by priority of holding thread?
     int highest_lock_priority = list_entry(list_front(cur_thread->locks_held), struct lock, elem)->highest_priority;
     if (cur_thread->original_priority < highest_lock_priority) {
       // add helper function to update positon in ready queue
-      cur_thread->priority = highest_lock_priority;
+      update_priority(cur_thread, highest_lock_priority);
     } else {
-      cur_thread->priority = cur_thread->original_priority;
+      update_priority(cur_thread, cur_thread->original_priority);
     }
-    // ENABLE disable interrupts?
-    // NEED to remove lock from list of locks held in cur thread struct
   } else {
-    cur_thread->priority = cur_thread->original_priority;
+    update_priority(cur_thread, cur_thread->original_priority);
   }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
+
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
