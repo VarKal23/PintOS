@@ -116,6 +116,7 @@ void sema_up (struct semaphore *sema)
   sema->value++;
   if (!list_empty (&sema->waiters)) {
     struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+    list_sort(&sema->waiters, (list_less_func*) &priority_comparator, NULL);
     thread_unblock (next_thread);
     if (thread_current ()->priority < next_thread->priority) {
       // an intr_context means that this function was called by an external interrupt like timer interrupt
@@ -186,7 +187,7 @@ void lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  lock->highest_priority = NULL;
+  //lock->highest_priority = NULL;
   sema_init (&lock->semaphore, 1);
 }
 
@@ -198,16 +199,8 @@ void lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-void lock_acquire (struct lock *lock)
-{
-  ASSERT (lock != NULL);
-  ASSERT (!intr_context ());
-  ASSERT (!lock_held_by_current_thread (lock));
 
-  // if (lock->holder && lock->holder->priority < thread_current ()->priority) {
-  //   donate_priority(lock->holder, thread_current ()->priority);
-  // }
-  /*Strategy Planning
+   /*Strategy Planning
       *Need to form a sort of chain/series of events, maybe in a while loop?, to ensure thread with lock has 
       highest priority poosible
       * need to have sema waiters list sorted by priority and insert by priority
@@ -222,25 +215,40 @@ void lock_acquire (struct lock *lock)
       * create list of locks held for each thread
       * need to have original priority variable to store old priority
       */
+
+void lock_acquire (struct lock *lock)
+{
+  ASSERT (lock != NULL);
+  ASSERT (!intr_context ());
+  ASSERT (!lock_held_by_current_thread (lock));
+
+  // if (lock->holder && lock->holder->priority < thread_current ()->priority) {
+  //   donate_priority(lock->holder, thread_current ()->priority);
+  // }
   if (lock->holder != NULL) {
     struct thread* cur_thread = thread_current();
     cur_thread->lock_waiting = lock;
     struct thread* next_thread = lock->holder;
 
     // Chaining together threads/locks through requests in order to donate highest priority up chain
-    while (next_thread != NULL) {
+    while (next_thread != NULL && next_thread->priority < cur_thread->priority) {
+
+      lock->highest_priority = cur_thread->priority; // Need this line?
       enum intr_level old_level;
       old_level = intr_disable ();
-      list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, &priority_comparator, NULL);
+      //list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, &priority_comparator, NULL);
       intr_set_level (old_level);
 
       if (cur_thread->priority > next_thread->priority) {
-        // USE donate functions or manually set next_thread priority?
-        //ASSERT( 1 == 2);
         update_priority(next_thread, cur_thread->priority);
       }
+
       cur_thread = next_thread;
-      next_thread = cur_thread->lock_waiting->holder;
+      if (next_thread->lock_waiting != NULL) {
+        next_thread = next_thread->lock_waiting->holder;
+      } else {
+        next_thread = NULL;
+      }
     }
   }
 
@@ -248,7 +256,6 @@ void lock_acquire (struct lock *lock)
   struct thread* holding_thread = thread_current();
   holding_thread->lock_waiting = NULL;
   lock->holder = holding_thread;
-  // FIX I think, need to insert current lock into locks held list
   list_insert_ordered(&holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
 }
 
@@ -289,7 +296,7 @@ void lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   // thread_set_priority(thread_current ()->original_priority);
-
+  //printf("entered release");
   struct thread* cur_thread = thread_current();
   enum intr_level old_level;
   old_level = intr_disable ();
@@ -308,6 +315,7 @@ void lock_release (struct lock *lock)
   } else {
     update_priority(cur_thread, cur_thread->original_priority);
   }
+  
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }

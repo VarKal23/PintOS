@@ -198,7 +198,6 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
 
   /* Add to run queue. */
   thread_unblock (t);
-
   if (thread_current ()->priority < priority) {
     thread_yield ();
   }
@@ -233,12 +232,11 @@ void thread_block (void)
 void thread_unblock (struct thread *t)
 {
   enum intr_level old_level;
-
   ASSERT (is_thread (t));
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
+  list_insert_ordered (&ready_list, &t->elem, (list_less_func*)&priority_comparator, NULL);
   // why does the code break here but not in thread_create?
   // what is the interrupt context
   // if (thread_current ()->priority < t->priority) {
@@ -273,6 +271,7 @@ void update_priority (struct thread *t,  int new_priority)
   }
 }
 
+
 /* Returns the name of the running thread. */
 const char *thread_name (void) { return thread_current ()->name; }
 
@@ -290,7 +289,6 @@ struct thread *thread_current (void)
      recursion can cause stack overflow. */
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
-
   return t;
 }
 
@@ -353,6 +351,7 @@ void thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {
+  enum intr_level old_level = intr_disable();
   thread_current ()->priority = new_priority;
   // list might be empty, in which case keep the current process running
   if (!list_empty (&ready_list)) {
@@ -361,6 +360,7 @@ void thread_set_priority (int new_priority)
       thread_yield ();
     }
   }
+   intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
