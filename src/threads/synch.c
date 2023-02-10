@@ -236,10 +236,14 @@ void lock_acquire (struct lock *lock)
   }
 
   sema_down (&lock->semaphore);
-  struct thread* holding_thread = thread_current();
-  holding_thread->lock_waiting = NULL;
-  lock->holder = holding_thread;
-  list_insert_ordered(&holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
+  struct thread* cur_thread = thread_current();
+  cur_thread->lock_waiting = NULL;
+  lock->holder = cur_thread;
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  // lock->highest_priority = cur_thread->priority;
+  list_insert_ordered(&cur_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
+  intr_set_level (old_level);
 }
 
 static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_, 
@@ -279,13 +283,11 @@ void lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   
-  struct thread* cur_thread = thread_current();
   list_remove(&lock->elem);
 
+  struct thread* cur_thread = thread_current();
   if (!list_empty(&cur_thread->locks_held)) {
-  
-    // FIX, need to find lock with highest held thread priority and replace, maybe sort locks held by priority of holding thread?
-    list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
+    // list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
     int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held), struct lock, elem)->highest_priority;
     update_priority(cur_thread, highest_lock_priority);
   } else {

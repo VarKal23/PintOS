@@ -351,7 +351,6 @@ void thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {
-  enum intr_level old_level = intr_disable();
   if (thread_current()->priority < new_priority) {
     thread_current()->priority = new_priority;
   } else {
@@ -360,12 +359,11 @@ void thread_set_priority (int new_priority)
   //printf("new pri: %d", new_priority);
   // list might be empty, in which case keep the current process running
   if (!list_empty (&ready_list)) {
-    struct thread *next_thread = list_entry (list_begin (&ready_list), struct thread, elem);
+    struct thread *next_thread = list_entry (list_begin(&ready_list), struct thread, elem);
     if (thread_current ()->priority < next_thread->priority) {
       thread_yield ();
     }
   }
-   intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
