@@ -227,7 +227,7 @@ void lock_acquire (struct lock *lock)
     // Chaining together threads/locks through requests in order to donate highest priority up chain
     while (next_thread != NULL) {
       // ENABLE disable interrupts?
-      list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, (list_less_func*)&priority_comparator, NULL);
+      list_insert_ordered(&lock->semaphore.waiters, &cur_thread->elem, &priority_comparator, NULL);
       if (cur_thread->priority > next_thread->priority) {
         // USE donate functions or manually set next_thread priority?
         donate_priority(next_thread, cur_thread->priority);
@@ -242,7 +242,15 @@ void lock_acquire (struct lock *lock)
   holding_thread->lock_waiting = NULL;
   lock->holder = holding_thread;
   // FIX I think, need to insert current lock into locks held list
-  list_insert(holding_thread->locks_held, &holding_thread->elem);
+  list_insert_ordered(holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
+}
+
+bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
+                        void *aux (UNUSED))
+{
+  const struct lock *a = list_entry (a_, struct lock, elem);
+  const struct lock *b = list_entry (b_, struct lock, elem);
+  return a->highest_priority > b->highest_priority;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -276,19 +284,21 @@ void lock_release (struct lock *lock)
   // thread_set_priority(thread_current ()->original_priority);
 
   struct thread* cur_thread = thread_current();
+  list_remove(&lock->elem);
   if (!list_empty(cur_thread->locks_held)) {
     
     // FIX, need to find lock with highest held thread priority and replace, maybe sort locks held by priority of holding thread?
-    struct thread* highest_thread = list_entry(list_front());
-    if (cur_thread->original_priority < highest_thread->priority) {
-      cur_thread->priority = highest_thread->priority;
+    int highest_lock_priority = list_entry(list_front(cur_thread->locks_held), struct lock, elem)->highest_priority;
+    if (cur_thread->original_priority < highest_lock_priority) {
+      // add helper function to update positon in ready queue
+      cur_thread->priority = highest_lock_priority;
     } else {
       cur_thread->priority = cur_thread->original_priority;
     }
-
     // ENABLE disable interrupts?
     // NEED to remove lock from list of locks held in cur thread struct
-    list_remove(&cur_thread->);
+  } else {
+    cur_thread->priority = cur_thread->original_priority;
   }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
