@@ -97,7 +97,7 @@ struct thread
   struct list_elem elem; /* List element. */
 
   // Priority Donation fields
-  struct list* locks_held;
+  struct list locks_held;
   struct lock* lock_waiting;
 
 #ifdef USERPROG

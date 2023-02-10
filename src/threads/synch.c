@@ -236,6 +236,7 @@ void lock_acquire (struct lock *lock)
 
       if (cur_thread->priority > next_thread->priority) {
         // USE donate functions or manually set next_thread priority?
+        //ASSERT( 1 == 2);
         update_priority(next_thread, cur_thread->priority);
       }
       cur_thread = next_thread;
@@ -248,7 +249,7 @@ void lock_acquire (struct lock *lock)
   holding_thread->lock_waiting = NULL;
   lock->holder = holding_thread;
   // FIX I think, need to insert current lock into locks held list
-  list_insert_ordered(holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
+  list_insert_ordered(&holding_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
 }
 
 static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_, 
@@ -294,10 +295,10 @@ void lock_release (struct lock *lock)
   old_level = intr_disable ();
   list_remove(&lock->elem);
   intr_set_level (old_level);
-  if (!list_empty(cur_thread->locks_held)) {
+  if (!list_empty(&cur_thread->locks_held)) {
     
     // FIX, need to find lock with highest held thread priority and replace, maybe sort locks held by priority of holding thread?
-    int highest_lock_priority = list_entry(list_front(cur_thread->locks_held), struct lock, elem)->highest_priority;
+    int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held), struct lock, elem)->highest_priority;
     if (cur_thread->original_priority < highest_lock_priority) {
       // add helper function to update positon in ready queue
       update_priority(cur_thread, highest_lock_priority);

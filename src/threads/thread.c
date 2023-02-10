@@ -262,10 +262,15 @@ void update_priority (struct thread *t,  int new_priority)
   // thread_set_priority() can only set the priority of the current thread
   // you could also call thread_current()->priority to get the new priority
   t->priority = new_priority;
-  old_level = intr_disable ();
-  list_remove (&t->elem);
-  list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
-  intr_set_level (old_level);
+  if (t->status == THREAD_READY) {
+    old_level = intr_disable ();
+    list_remove (&t->elem);
+    list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
+    if (thread_current()->priority < t->priority) {
+      thread_yield();
+    }
+    intr_set_level (old_level);
+  }
 }
 
 /* Returns the name of the running thread. */
@@ -474,7 +479,7 @@ static void init_thread (struct thread *t, const char *name, int priority)
 
   // Donation Solution
   t->lock_waiting = NULL;
-  t->locks_held = NULL;
+  list_init(&t->locks_held);
   
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
