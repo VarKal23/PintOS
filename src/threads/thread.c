@@ -39,6 +39,7 @@ static struct lock tid_lock;
 
 // sema used to safely access/change ready list
 static struct semaphore ready_sema;
+static struct semaphore set_priority_sema;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
@@ -93,6 +94,7 @@ void thread_init (void)
 
   lock_init (&tid_lock);
   sema_init(&ready_sema, 1);
+  sema_init(&set_priority_sema, 1);
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -359,6 +361,7 @@ void thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {
+  sema_down(&set_priority_sema);
   bool donated_pri = thread_current ()->priority != 
                     thread_current ()->original_priority;
   thread_current ()->original_priority = new_priority;
@@ -368,6 +371,7 @@ void thread_set_priority (int new_priority)
     thread_current ()->priority = new_priority;
     thread_yield ();
   }
+  sema_up(&set_priority_sema);
 }
 
 /* Returns the current thread's priority. */
