@@ -37,6 +37,9 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+// sema used to safely access/change ready list
+static struct semaphore ready_sema;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
 {
@@ -89,6 +92,8 @@ void thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  // lock_init (&ready_lock);
+  sema_init(&ready_sema, 1);
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -241,6 +246,8 @@ void thread_unblock (struct thread *t)
 
 // Compares threads based on priority
 // Used to sort ready_list and sema->waiters
+// takes two list_elems for threads as input, returns true if
+// first input has a greater priority
 bool priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void *aux UNUSED)
 {
@@ -251,15 +258,19 @@ bool priority_comparator (const struct list_elem *a_,
 
 // Updates a thread's priority and its positon in the read queue
 // Used in donation/recalling donation
+// takes in a thread and the new priority as input
 void update_priority (struct thread *t,  int new_priority) 
 {
   t->priority = new_priority;
   if (t->status == THREAD_READY) {
+    // critical section!!
+    sema_down(&ready_sema);
     list_remove (&t->elem);
     list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
-    // if (thread_current ()->priority < t->priority) {
-    //   thread_yield ();
-    // }
+    sema_up(&ready_sema);
+    if (thread_current ()->priority < t->priority) {
+      thread_yield ();
+    }
   }
 }
 
@@ -343,7 +354,8 @@ void thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {
-  bool donated_pri = thread_current ()->priority != thread_current ()->original_priority;
+  bool donated_pri = thread_current ()->priority != 
+                    thread_current ()->original_priority;
   thread_current ()->original_priority = new_priority;
   // if thread_current's priority was donated, then don't lower it!
   // but if it's being raised it doesn't matter

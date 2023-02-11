@@ -23,6 +23,9 @@ static int64_t ticks;
 // List of blocked threads sorted by tick count
 static struct list blocked_list;
 
+// sema used to safely access/change blocked list
+static struct semaphore blocked_sema;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -32,8 +35,8 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
-static bool ticks_less (const struct list_elem *a_, const struct list_elem *b_,
-                        void *aux UNUSED);
+static bool wakeup_time_comparator (const struct list_elem *a_, 
+            const struct list_elem *b_, void *aux UNUSED);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -42,6 +45,7 @@ void timer_init (void)
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init (&blocked_list);
+  sema_init(&blocked_sema, 1);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -85,6 +89,9 @@ int64_t timer_ticks (void)
 int64_t timer_elapsed (int64_t then) { return timer_ticks () - then; }
 
 
+// custom struct for storing threads in the blocked list
+// contains a thread's corresponding semaphore,
+// its wakeup time, and a list_elem
 struct blocked_entry {
   struct semaphore *sema;
   int64_t timer_end;
@@ -93,7 +100,9 @@ struct blocked_entry {
 
 // Compares threads based on wakeup time
 // Used to sort the list of blocked threads
-static bool ticks_comparator (const struct list_elem *a_, 
+// takes two list_elems for blocked entries as input, returns true
+// if first input has an earlier wakeup time
+static bool wakeup_time_comparator (const struct list_elem *a_,
             const struct list_elem *b_, void *aux UNUSED)
 {
   const struct blocked_entry *a = list_entry (a_, struct blocked_entry, elem);
@@ -111,8 +120,6 @@ void timer_sleep (int64_t ticks)
     return;
   }
 
-  enum intr_level old_level;
-
   struct semaphore sema;
   sema_init (&sema, 0);
 
@@ -121,10 +128,11 @@ void timer_sleep (int64_t ticks)
   entry.sema = &sema;
   entry.timer_end = start + ticks;
   
-  // this is a critical section
-  old_level = intr_disable ();
-  list_insert_ordered (&blocked_list, &entry.elem, &ticks_comparator, NULL);
-  intr_set_level (old_level);
+  // critical section!!
+  sema_down(&blocked_sema);
+  list_insert_ordered (&blocked_list, &entry.elem, 
+                      &wakeup_time_comparator, NULL);
+  sema_up(&blocked_sema);
   sema_down (&sema);
 }
 
@@ -182,7 +190,7 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   // iterate through list of blocked threads, 
   // call sema_up on threads that are done sleeping
   struct list_elem *e = list_begin (&blocked_list);
-  struct blocked_entry *entry;
+  struct blocked_entry *entry = NULL;
 
   while (e != list_end (&blocked_list) &&
          list_entry (e, struct blocked_entry, elem)->timer_end <= ticks)

@@ -32,9 +32,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-bool lock_priority_comparator (const struct list_elem *a_, 
+static bool lock_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void *aux UNUSED);
-bool condvar_priority_comparator (const struct list_elem *a_, 
+static bool cond_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void* aux UNUSED);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
@@ -230,7 +230,9 @@ void lock_acquire (struct lock *lock)
 
 // Compares locks based on their highest priority
 // Used to sort the locks_held list
-bool lock_priority_comparator (const struct list_elem *a_, 
+// takes two list_elems for locks as input, returns true if
+// first input has a greater priority
+static bool lock_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void* aux UNUSED)
 {
   const struct lock *a = list_entry (a_, struct lock, elem);
@@ -323,7 +325,9 @@ void cond_init (struct condition *cond)
 
 // Compares semaphores in the condvar queue based on their thread's priority
 // Used to implement priority scheduling for condvars
-bool condvar_priority_comparator (const struct list_elem *a_, 
+// takes two list_elems for semaphore_elems as input, returns true if
+// first input has a greater priority
+static bool cond_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void* aux UNUSED)
 {
   const struct semaphore_elem *sema_a = 
@@ -396,7 +400,7 @@ void cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) {
-    list_sort (&cond->waiters, &condvar_priority_comparator, NULL);
+    list_sort (&cond->waiters, &cond_priority_comparator, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)
             ->semaphore);
