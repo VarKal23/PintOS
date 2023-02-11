@@ -32,7 +32,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-static bool lock_priority_comparator (const struct list_elem *a_, 
+bool lock_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
@@ -68,11 +68,11 @@ void sema_down (struct semaphore *sema)
 
   old_level = intr_disable ();
   while (sema->value == 0)
-    {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
-                  &priority_comparator, NULL);
-      thread_block ();
-    }
+  {
+    list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
+                &priority_comparator, NULL);
+    thread_block ();
+  }
   sema->value--;
   intr_set_level (old_level);
 }
@@ -117,8 +117,8 @@ void sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters)) {
     struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), 
                 struct thread, elem);
-    list_sort(&sema->waiters, (list_less_func*) &priority_comparator, NULL);
     thread_unblock (next_thread);
+    // technically you don't need this check but it helps to understand
     if (thread_current ()->priority < next_thread->priority) {
       if (intr_context ())
         intr_yield_on_return ();
@@ -225,7 +225,7 @@ void lock_acquire (struct lock *lock)
               &lock_priority_comparator, NULL);
 }
 
-static bool lock_priority_comparator (const struct list_elem *a_, 
+bool lock_priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void* aux UNUSED)
 {
   const struct lock *a = list_entry (a_, struct lock, elem);
@@ -269,9 +269,9 @@ void lock_release (struct lock *lock)
   if (!list_empty(&cur_thread->locks_held)) {
     // is this a critical section?
     // list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
-    int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held),
+    int new_donated_pri = list_entry(list_front(&cur_thread->locks_held),
                 struct lock, elem)->highest_priority;
-    update_priority(cur_thread, highest_lock_priority);
+    update_priority(cur_thread, new_donated_pri);
   } else {
     update_priority(cur_thread, cur_thread->original_priority);
   }

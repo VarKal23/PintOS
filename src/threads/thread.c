@@ -198,6 +198,8 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  // technically you don't need this check but it helps to understand
   if (thread_current ()->priority < priority) {
     thread_yield ();
   }
@@ -250,7 +252,7 @@ bool priority_comparator (const struct list_elem *a_,
   return a->priority > b->priority;
 }
 
-// Updates priority of a given thread as used in priority donation
+// Used to donate/undonate a priority to a thread
 void update_priority (struct thread *t,  int new_priority) 
 {
   t->priority = new_priority;
@@ -262,7 +264,6 @@ void update_priority (struct thread *t,  int new_priority)
     // }
   }
 }
-
 
 /* Returns the name of the running thread. */
 const char *thread_name (void) { return thread_current ()->name; }
