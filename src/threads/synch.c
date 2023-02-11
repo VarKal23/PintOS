@@ -32,8 +32,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
-                        void *aux UNUSED);
+static bool lock_priority_comparator (const struct list_elem *a_, 
+            const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -69,8 +69,8 @@ void sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0)
     {
-      // list_push_back (&sema->waiters, &thread_current ()->elem);
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, &priority_comparator, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
+                  &priority_comparator, NULL);
       thread_block ();
     }
   sema->value--;
@@ -115,20 +115,17 @@ void sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   sema->value++;
   if (!list_empty (&sema->waiters)) {
-    struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+    struct thread *next_thread = list_entry (list_pop_front (&sema->waiters), 
+                struct thread, elem);
     list_sort(&sema->waiters, (list_less_func*) &priority_comparator, NULL);
     thread_unblock (next_thread);
     if (thread_current ()->priority < next_thread->priority) {
-      // an intr_context means that this function was called by an external interrupt like timer interrupt
-      // timer interrupts actually get run by the same thread that was executing immediately before
-      // so we should not immediately yield!! we should finish executing the interrupt first
       if (intr_context ())
         intr_yield_on_return ();
       else
         thread_yield ();
     }
   }
-  
   intr_set_level (old_level);
 }
 
@@ -199,23 +196,6 @@ void lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-
-   /*Strategy Planning
-      *Need to form a sort of chain/series of events, maybe in a while loop?, to ensure thread with lock has 
-      highest priority poosible
-      * need to have sema waiters list sorted by priority and insert by priority
-      * when lock acquire is called, if it's already held, add thread to waiters and if it's the new highest priority/front
-      * of waiters compare it against holders priority and set holders equal to new highest if it's less than it
-      * 
-      * When releasing a lock, priority needs to be set to next highest among the locks it holds from semawaiters list
-      * or just original priority if no more locks held
-      * Update holder to be next thread in semawaiters
-      * 
-      * maybe have a max priority variable per lock that updates upon sema waiter changes? not needed maybe?
-      * create list of locks held for each thread
-      * need to have original priority variable to store old priority
-      */
-
 void lock_acquire (struct lock *lock)
 {
   ASSERT (lock != NULL);
@@ -227,8 +207,10 @@ void lock_acquire (struct lock *lock)
     cur_thread->lock_waiting = lock;
     struct lock* cur_lock = lock;
 
-    // Chaining together threads/locks through requests in order to donate highest priority up chain
-    while (cur_lock != NULL && cur_lock->highest_priority < cur_thread->priority) {
+    // Chaining together threads/locks through requests in order to donate 
+    // highest priority up chain
+    while (cur_lock != NULL && cur_lock->highest_priority < 
+                cur_thread->priority) {
       lock->highest_priority = cur_thread->priority;
       update_priority(cur_lock->holder, cur_thread->priority);
       cur_lock = cur_lock->holder->lock_waiting;
@@ -239,15 +221,12 @@ void lock_acquire (struct lock *lock)
   struct thread* cur_thread = thread_current();
   cur_thread->lock_waiting = NULL;
   lock->holder = cur_thread;
-  enum intr_level old_level;
-  old_level = intr_disable ();
-  // lock->highest_priority = cur_thread->priority;
-  list_insert_ordered(&cur_thread->locks_held, &lock->elem, &lock_priority_comparator, NULL);
-  intr_set_level (old_level);
+  list_insert_ordered(&cur_thread->locks_held, &lock->elem, 
+              &lock_priority_comparator, NULL);
 }
 
-static bool lock_priority_comparator (const struct list_elem *a_, const struct list_elem *b_, 
-                              void* aux UNUSED)
+static bool lock_priority_comparator (const struct list_elem *a_, 
+            const struct list_elem *b_, void* aux UNUSED)
 {
   const struct lock *a = list_entry (a_, struct lock, elem);
   const struct lock *b = list_entry (b_, struct lock, elem);
@@ -288,7 +267,8 @@ void lock_release (struct lock *lock)
   struct thread* cur_thread = thread_current();
   if (!list_empty(&cur_thread->locks_held)) {
     // list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
-    int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held), struct lock, elem)->highest_priority;
+    int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held),
+                struct lock, elem)->highest_priority;
     update_priority(cur_thread, highest_lock_priority);
   } else {
     update_priority(cur_thread, cur_thread->original_priority);

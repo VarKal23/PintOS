@@ -92,8 +92,9 @@ struct blocked_entry {
   struct list_elem elem;
 };
 
-static bool ticks_comparator (const struct list_elem *a_, const struct list_elem *b_,
-                        void *aux UNUSED)
+// Compares tick counts against one another for timer use
+static bool ticks_comparator (const struct list_elem *a_, 
+            const struct list_elem *b_, void *aux UNUSED)
 {
   const struct blocked_entry *a = list_entry (a_, struct blocked_entry, elem);
   const struct blocked_entry *b = list_entry (b_, struct blocked_entry, elem);
@@ -126,17 +127,6 @@ void timer_sleep (int64_t ticks)
   old_level = intr_disable ();
   list_insert_ordered (&blocked_list, &entry.elem, &ticks_comparator, NULL);
   intr_set_level (old_level);
-  
-  // struct list_elem *e = list_head (&blocked_list);
-  // struct blocked_entry *cur_entry;
-  // printf("Current time: %d \n", timer_ticks());
-  // while ((e = list_next (e)) != list_end (&blocked_list))
-  // {
-  //   cur_entry = list_entry (e, struct blocked_entry, elem);
-  //   printf("%d ", cur_entry->timer_end);
-  // }
-  // printf("\n");
-
   sema_down (&sema);
 }
 
@@ -189,19 +179,18 @@ void timer_print_stats (void)
 static void timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  // still not sure what this function does
   thread_tick ();
 
-  // iterate through list of blocked threads, call sema_up on threads that are done sleeping
+  // iterate through list of blocked threads, call sema_up on threads that are 
+  // done sleeping
   struct list_elem *e = list_begin (&blocked_list);
   struct blocked_entry *entry;
 
-  // access ticks directly or use timer_ticks()?
-  while (e != list_end (&blocked_list) && list_entry (e, struct blocked_entry, elem)->timer_end <= ticks)
+  while (e != list_end (&blocked_list) &&
+         list_entry (e, struct blocked_entry, elem)->timer_end <= ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
     sema_up(entry->sema);
-    // no need to disable interrupts here because multiple threads will not be running timer_interrupt
     e = list_remove (e);
   }
 

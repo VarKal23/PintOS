@@ -236,38 +236,31 @@ void thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, (list_less_func*)&priority_comparator, NULL);
-  // why does the code break here but not in thread_create?
-  // what is the interrupt context
-  // if (thread_current ()->priority < t->priority) {
-  //   thread_yield ();
-  // }
+  list_insert_ordered (&ready_list, &t->elem, 
+              (list_less_func*)&priority_comparator, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 
-bool priority_comparator (const struct list_elem *a_, const struct list_elem *b_,
-                        void *aux UNUSED)
+// Compares threads based on priority
+bool priority_comparator (const struct list_elem *a_, 
+            const struct list_elem *b_, void *aux UNUSED)
 {
   const struct thread *a = list_entry (a_, struct thread, elem);
   const struct thread *b = list_entry (b_, struct thread, elem);
   return a->priority > b->priority;
 }
 
+// Updates priority of a given thread as used in priority donation
 void update_priority (struct thread *t,  int new_priority) 
 {
-  enum intr_level old_level;
-  // thread_set_priority() can only set the priority of the current thread
-  // you could also call thread_current()->priority to get the new priority
   t->priority = new_priority;
   if (t->status == THREAD_READY) {
-    old_level = intr_disable ();
     list_remove (&t->elem);
     list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
     if (thread_current()->priority < t->priority) {
       thread_yield();
     }
-    intr_set_level (old_level);
   }
 }
 
@@ -341,7 +334,8 @@ void thread_foreach (thread_action_func *func, void *aux)
 
   ASSERT (intr_get_level () == INTR_OFF);
 
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+  for (e = list_begin (&all_list); e != list_end (&all_list); 
+  e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, allelem);
       func (t, aux);
@@ -351,26 +345,23 @@ void thread_foreach (thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {
-  enum intr_level old_level = intr_disable();
+
   if (thread_current()->priority < new_priority) {
     thread_current()->priority = new_priority;
   } else {
     thread_current()->original_priority = new_priority;
   }
-  // if (thread_current()->priority > new_priority && !list_empty(&thread_current()->locks_held)) {
-  //   thread_current()->original_priority = new_priority;
-  // } else {
-  //   thread_current()->priority = new_priority;
-  // }
-  //printf("new pri: %d", new_priority);
-  // list might be empty, in which case keep the current process running
+  enum intr_level old_level = intr_disable();
   if (!list_empty (&ready_list)) {
-    struct thread *next_thread = list_entry (list_begin(&ready_list), struct thread, elem);
-    if (thread_current ()->priority < next_thread->priority || thread_current()->priority > new_priority) {
+    struct thread *next_thread = list_entry (list_begin(&ready_list), 
+    struct thread, elem);
+    if (thread_current ()->priority < next_thread->priority || 
+    thread_current()->priority > new_priority) {
       thread_current()->priority = new_priority;
       thread_yield ();
     }
   }
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's priority. */
@@ -471,7 +462,8 @@ static bool is_thread (struct thread *t)
 
 /* Does basic initialization of T as a blocked thread named
    NAME. */
-static void init_thread (struct thread *t, const char *name, int priority)
+static void init_thread (struct thread *t, const char *name, 
+int priority)
 {
   enum intr_level old_level;
 
