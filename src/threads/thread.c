@@ -348,7 +348,7 @@ void thread_set_priority (int new_priority)
   bool donated_pri = thread_current ()->priority != thread_current ()->original_priority;
   thread_current ()->original_priority = new_priority;
   // if thread_current's priority was donated, then don't lower it!
-  // but if you're raising it, it's fine to update
+  // but if it's being raised it doesn't matter
   if (new_priority > thread_current ()->priority || !donated_pri) {
     thread_current ()->priority = new_priority;
     thread_yield ();
