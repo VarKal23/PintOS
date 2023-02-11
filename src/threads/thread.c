@@ -92,7 +92,6 @@ void thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
-  // lock_init (&ready_lock);
   sema_init(&ready_sema, 1);
   list_init (&ready_list);
   list_init (&all_list);
@@ -201,6 +200,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   /* Add to run queue. */
   thread_unblock (t);
 
+  // Matt drove here
   if (thread_current ()->priority < priority) {
     thread_yield ();
   }
@@ -239,11 +239,13 @@ void thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  // Varun drove here
   list_insert_ordered (&ready_list, &t->elem, &priority_comparator, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 
+// Varun drove here
 // Compares threads based on priority
 // Used to sort ready_list and sema->waiters
 // takes two list_elems for threads as input, returns true if
@@ -256,6 +258,7 @@ bool priority_comparator (const struct list_elem *a_,
   return a->priority > b->priority;
 }
 
+// Matt drove here
 // Updates a thread's priority and its positon in the read queue
 // Used in donation/recalling donation
 // takes in a thread and the new priority as input
@@ -328,6 +331,7 @@ void thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) {
+    // Matt drove here
     list_insert_ordered (&ready_list, &cur->elem, &priority_comparator, NULL);
   }
   cur->status = THREAD_READY;
@@ -351,6 +355,7 @@ void thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+// Matt and Varun drove here
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority (int new_priority)
 {

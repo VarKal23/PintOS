@@ -89,6 +89,7 @@ int64_t timer_ticks (void)
 int64_t timer_elapsed (int64_t then) { return timer_ticks () - then; }
 
 
+// Matt drove here
 // custom struct for storing threads in the blocked list
 // contains a thread's corresponding semaphore,
 // its wakeup time, and a list_elem
@@ -98,6 +99,7 @@ struct blocked_entry {
   struct list_elem elem;
 };
 
+// Varun drove here
 // Compares threads based on wakeup time
 // Used to sort the list of blocked threads
 // takes two list_elems for blocked entries as input, returns true
@@ -123,6 +125,7 @@ void timer_sleep (int64_t ticks)
   struct semaphore sema;
   sema_init (&sema, 0);
 
+  // Matt drove here
   int64_t start = timer_ticks ();
   struct blocked_entry entry;
   entry.sema = &sema;
@@ -187,6 +190,7 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
+  // Varun drove here
   // iterate through list of blocked threads, 
   // call sema_up on threads that are done sleeping
   struct list_elem *e = list_begin (&blocked_list);
