@@ -117,7 +117,6 @@ void thread_start (void)
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
-  //  what is an external interrupt context?
 void thread_tick (void)
 {
   struct thread *t = thread_current ();
@@ -155,8 +154,6 @@ void thread_print_stats (void)
    thread may run for any amount of time before the new thread is
    scheduled.  Use a semaphore or some other form of
    synchronization if you need to ensure ordering.
-
-  //  what does the above comment mean?
 
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
@@ -199,7 +196,6 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   /* Add to run queue. */
   thread_unblock (t);
 
-  // technically you don't need this check but it helps to understand
   if (thread_current ()->priority < priority) {
     thread_yield ();
   }
@@ -244,6 +240,7 @@ void thread_unblock (struct thread *t)
 }
 
 // Compares threads based on priority
+// Used to sort ready_list and sema->waiters
 bool priority_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void *aux UNUSED)
 {
@@ -252,7 +249,8 @@ bool priority_comparator (const struct list_elem *a_,
   return a->priority > b->priority;
 }
 
-// Used to donate/undonate a priority to a thread
+// Updates a thread's priority and its positon in the read queue
+// Used in donation/recalling donation
 void update_priority (struct thread *t,  int new_priority) 
 {
   t->priority = new_priority;
@@ -470,9 +468,8 @@ int priority)
   t->original_priority = priority;
   t->magic = THREAD_MAGIC;
 
-  // Donation Solution
   t->lock_waiting = NULL;
-  list_init(&t->locks_held);
+  list_init (&t->locks_held);
   
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

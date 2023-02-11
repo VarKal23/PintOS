@@ -41,8 +41,7 @@ void timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
-  // we put this here right?
-  list_init(&blocked_list);
+  list_init (&blocked_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -92,7 +91,8 @@ struct blocked_entry {
   struct list_elem elem;
 };
 
-// Compares tick counts against one another for timer use
+// Compares threads based on wakeup time
+// Used to sort the list of blocked threads
 static bool ticks_comparator (const struct list_elem *a_, 
             const struct list_elem *b_, void *aux UNUSED)
 {
@@ -179,8 +179,8 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
-  // iterate through list of blocked threads, call sema_up on threads that are 
-  // done sleeping
+  // iterate through list of blocked threads, 
+  // call sema_up on threads that are done sleeping
   struct list_elem *e = list_begin (&blocked_list);
   struct blocked_entry *entry;
 
@@ -188,7 +188,7 @@ static void timer_interrupt (struct intr_frame *args UNUSED)
          list_entry (e, struct blocked_entry, elem)->timer_end <= ticks)
   {
     entry = list_entry (e, struct blocked_entry, elem);
-    sema_up(entry->sema);
+    sema_up (entry->sema);
     e = list_remove (e);
   }
 
