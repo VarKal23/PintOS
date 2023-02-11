@@ -271,7 +271,7 @@ void lock_release (struct lock *lock)
 
   struct thread* cur_thread = thread_current();
   if (!list_empty(&cur_thread->locks_held)) {
-    // not sure if this is a critical section
+    // is this a critical section?
     list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
     int new_donated_pri = list_entry(list_front(&cur_thread->locks_held),
                 struct lock, elem)->highest_priority;
