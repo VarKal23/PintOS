@@ -101,8 +101,6 @@ static bool ticks_comparator (const struct list_elem *a_,
   return a->timer_end < b->timer_end;
 }
 
-// pintos run alarm-multiple > /dev/null
-
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void timer_sleep (int64_t ticks)

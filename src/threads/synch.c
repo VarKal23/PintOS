@@ -211,7 +211,7 @@ void lock_acquire (struct lock *lock)
     // highest priority up chain
     while (cur_lock != NULL && cur_lock->highest_priority < 
                 cur_thread->priority) {
-      lock->highest_priority = cur_thread->priority;
+      cur_lock->highest_priority = cur_thread->priority;
       update_priority(cur_lock->holder, cur_thread->priority);
       cur_lock = cur_lock->holder->lock_waiting;
     }
@@ -263,9 +263,11 @@ void lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   list_remove(&lock->elem);
+  lock->holder = NULL;
 
   struct thread* cur_thread = thread_current();
   if (!list_empty(&cur_thread->locks_held)) {
+    // is this a critical section?
     // list_sort(&cur_thread->locks_held, &lock_priority_comparator, NULL);
     int highest_lock_priority = list_entry(list_front(&cur_thread->locks_held),
                 struct lock, elem)->highest_priority;
@@ -274,7 +276,6 @@ void lock_release (struct lock *lock)
     update_priority(cur_thread, cur_thread->original_priority);
   }
   
-  lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
 
