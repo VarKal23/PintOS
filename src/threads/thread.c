@@ -369,7 +369,10 @@ void thread_set_priority (int new_priority)
   // but if it's being raised it doesn't matter
   if (new_priority > thread_current ()->priority || !donated_pri) {
     thread_current ()->priority = new_priority;
-    thread_yield ();
+    if (intr_context ())
+      intr_yield_on_return ();
+    else
+      thread_yield ();
   }
   sema_up(&set_priority_sema);
 }
