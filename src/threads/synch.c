@@ -211,9 +211,9 @@ void lock_acquire (struct lock *lock)
     cur_thread->lock_waiting = lock;
     struct lock* cur_lock = lock;
 
-    // implementation of nested donation
-    //  while loop donates priority up the chain of locks
     // Matt and Varun drove here
+    // implementation of nested donation
+    // while loop donates priority up the chain of locks
     while (cur_lock != NULL && cur_lock->highest_priority < 
                 cur_thread->priority) {
       cur_lock->highest_priority = cur_thread->priority;
