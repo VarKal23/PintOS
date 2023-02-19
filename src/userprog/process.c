@@ -435,10 +435,19 @@ static bool setup_stack (void **esp, char* cmd_line)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-        char* myesp = *esp;
+        // adding args themselves
 
-
+        char* myesp = (char*) *esp;
+        char* addr_cpys[argc];
+        for (int i = argc - 1; i >= 0; i--) {
+          myesp = myesp - (strlen(argv[i]) + 1);
+          memcpy(myesp, argv[i], strlen(argv[i]) + 1);
+          addr_cpys[i] = myesp;
+        }
         *esp = myesp;
+        // adding padding for alignment
+        // adding pointers to args
+
       } else {
         palloc_free_page (kpage);
       }
