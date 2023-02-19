@@ -187,7 +187,7 @@ struct Elf32_Phdr
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char* cmd_line);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -291,7 +291,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -414,19 +414,34 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool setup_stack (void **esp)
+static bool setup_stack (void **esp, char* cmd_line)
 {
   uint8_t *kpage;
   bool success = false;
+
+  // Parsing Arguments
+  // MAKE sure that arguments are less than pagesize or whatever if you fail a case
+  char** argv = strtok(cmd_line, ' ');
+  int index = 1;
+  while (argv != NULL) {
+    argv[index] = strtok(NULL, ' ');
+    index++;
+  }
+  int argc = index + 1;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success) {
         *esp = PHYS_BASE;
-      else
+        char* myesp = *esp;
+
+
+        *esp = myesp;
+      } else {
         palloc_free_page (kpage);
+      }
     }
   return success;
 }
