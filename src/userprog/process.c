@@ -420,7 +420,7 @@ static bool setup_stack (void **esp, char* cmd_line)
   bool success = false;
 
   // Parsing Arguments
-  // MAKE sure that arguments are less than pagesize or whatever if you fail a case
+  // MAKE sure that arguments are less than pagesize
   char** argv = strtok(cmd_line, ' ');
   int index = 1;
   while (argv != NULL) {
@@ -435,8 +435,7 @@ static bool setup_stack (void **esp, char* cmd_line)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-        // adding args themselves
-
+        // push args themselves
         char* myesp = (char*) *esp;
         char* addr_cpys[argc];
         for (int i = argc - 1; i >= 0; i--) {
@@ -444,10 +443,37 @@ static bool setup_stack (void **esp, char* cmd_line)
           memcpy(myesp, argv[i], strlen(argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
+        // add padding for alignment
+        // can you change the pointer type like this?
+        myesp = (uint8_t*) myesp;
+        while((int) myesp % 4 != 0) {
+          myesp--;
+          *myesp = 0;
+        }
+        // push null pointer sentinel
+        myesp = (char**) myesp;
+        myesp--;
+        *myesp = NULL;
+        // push pointers to args
+        for (int i = argc-1; i >= 0; i--) {
+          myesp--;
+          *myesp = argv[i];
+        }
+        // push pointer to argv
+        char** argv_p = myesp;
+        myesp = (char***) myesp;
+        myesp--;
+        *myesp = argv_p;
+        // push argc
+        myesp = (int*) myesp;
+        myesp--;
+        *myesp = argc;
+        // push return address
+        myesp = (void*) myesp;
+        myesp--;
+        *myesp = 0;
+        // update original stack pointer
         *esp = myesp;
-        // adding padding for alignment
-        // adding pointers to args
-
       } else {
         palloc_free_page (kpage);
       }
