@@ -37,10 +37,21 @@ tid_t process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // char* actual_name = malloc(strlen(file_name) + 1);
+  // strcpy(actual_name, file_name);
+  // actual_name = strtok(actual_name, " ");
+  char* actual_name = palloc_get_page (0);
+  if (actual_name == NULL)
+    return TID_ERROR;
+  strlcpy (actual_name, file_name, PGSIZE);
+  char* save_ptr = actual_name;
+  actual_name = strtok_r(actual_name, " ", &save_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (actual_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  palloc_free_page(actual_name);
   return tid;
 }
 
@@ -83,7 +94,11 @@ static void start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int process_wait (tid_t child_tid UNUSED) { return -1; }
+int process_wait (tid_t child_tid UNUSED) { 
+  while (1) {
+
+  }
+  return -1; }
 
 /* Free the current process's resources. */
 void process_exit (void)
@@ -213,12 +228,19 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  char* actual_name = palloc_get_page (0);
+  if (actual_name == NULL)
+    return TID_ERROR;
+  strlcpy (actual_name, file_name, PGSIZE);
+  char* save_ptr;
+  actual_name = strtok_r(actual_name, " ", &save_ptr);
+  file = filesys_open (actual_name);
   if (file == NULL)
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", actual_name);
       goto done;
     }
+  palloc_free_page(actual_name);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -419,16 +441,20 @@ static bool setup_stack (void **esp, char* cmd_line)
   uint8_t *kpage;
   bool success = false;
 
-  // Parsing Arguments
   // MAKE sure that arguments are less than pagesize
-  char** argv = strtok(cmd_line, ' ');
+  // if (strlen(cmd_line) > PGSIZE) {
+  //   exit(1);
+  // }
+  // Parsing Arguments
+  char* save_ptr;
+  char** argv = strtok_r(cmd_line, " ", &save_ptr);
   int index = 1;
   while (argv != NULL) {
-    argv[index] = strtok(NULL, ' ');
+    argv[index] = strtok_r(NULL, " ", &save_ptr);
     index++;
   }
-  int argc = index + 1;
 
+  int argc = index + 1;
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL)
     {
@@ -478,6 +504,8 @@ static bool setup_stack (void **esp, char* cmd_line)
         palloc_free_page (kpage);
       }
     }
+  // ASSERT(1 == 2);
+  hex_dump(*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
   return success;
 }
 
