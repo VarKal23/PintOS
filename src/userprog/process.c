@@ -202,7 +202,7 @@ struct Elf32_Phdr
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack (void **esp, char* cmd_line);
+static bool setup_stack (void **esp, char* cmd_line, char** argv, int argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -228,19 +228,22 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  char* actual_name = palloc_get_page (0);
-  if (actual_name == NULL)
-    return TID_ERROR;
-  strlcpy (actual_name, file_name, PGSIZE);
   char* save_ptr;
-  actual_name = strtok_r(actual_name, " ", &save_ptr);
-  file = filesys_open (actual_name);
+  char* argv[128];
+  int index = 0;
+  argv[index] = strtok_r(file_name, " ", &save_ptr);
+  while (argv[index] != NULL) {
+    index++;
+    argv[index] = strtok_r(NULL, " ", &save_ptr);
+  }
+  int argc = index;
+
+  file = filesys_open (argv[0]);
   if (file == NULL)
     {
-      printf ("load: %s: open failed\n", actual_name);
+      printf ("load: %s: open failed\n", argv[0]);
       goto done;
     }
-  palloc_free_page(actual_name);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr ||
@@ -248,7 +251,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
       ehdr.e_machine != 3 || ehdr.e_version != 1 ||
       ehdr.e_phentsize != sizeof (struct Elf32_Phdr) || ehdr.e_phnum > 1024)
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", argv[0]);
       goto done;
     }
 
@@ -311,14 +314,12 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
             break;
         }
     }
-
   /* Set up stack. */
-  if (!setup_stack (esp, file_name))
+  if (!setup_stack (esp, file_name, argv, argc))
     goto done;
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
   success = true;
 
 done:
@@ -436,7 +437,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool setup_stack (void **esp, char* cmd_line)
+static bool setup_stack (void **esp, char* cmd_line, char** argv, int argc)
 {
   uint8_t *kpage;
   bool success = false;
@@ -445,16 +446,7 @@ static bool setup_stack (void **esp, char* cmd_line)
   // if (strlen(cmd_line) > PGSIZE) {
   //   exit(1);
   // }
-  // Parsing Arguments
-  char* save_ptr;
-  char** argv = strtok_r(cmd_line, " ", &save_ptr);
-  int index = 1;
-  while (argv != NULL) {
-    argv[index] = strtok_r(NULL, " ", &save_ptr);
-    index++;
-  }
 
-  int argc = index + 1;
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL)
     {
