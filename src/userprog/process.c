@@ -37,21 +37,18 @@ tid_t process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  // char* actual_name = malloc(strlen(file_name) + 1);
-  // strcpy(actual_name, file_name);
-  // actual_name = strtok(actual_name, " ");
-  char* actual_name = palloc_get_page (0);
-  if (actual_name == NULL)
-    return TID_ERROR;
-  strlcpy (actual_name, file_name, PGSIZE);
-  char* save_ptr = actual_name;
-  actual_name = strtok_r(actual_name, " ", &save_ptr);
+  // parsing to get the actual file name
+  char* actual_name = malloc(strlen(fn_copy) + 1);
+  strlcpy (actual_name, fn_copy, strlen(fn_copy) + 1);
+  // is this ok?
+  char* strtok_ptr = actual_name;
+  actual_name = strtok_r(actual_name, " ", &strtok_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (actual_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  palloc_free_page(actual_name);
+  // palloc_free_page(actual_name);
   return tid;
 }
 
@@ -202,7 +199,7 @@ struct Elf32_Phdr
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack (void **esp, char* cmd_line, char** argv, int argc);
+static bool setup_stack (void **esp, char** argv, int argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -228,13 +225,15 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  char* save_ptr;
   char* argv[128];
   int index = 0;
-  argv[index] = strtok_r(file_name, " ", &save_ptr);
+  char* cmd_copy = malloc(strlen(file_name) + 1);
+  strlcpy (cmd_copy, file_name, strlen(file_name) + 1);
+  char* strtok_ptr = cmd_copy;
+  argv[index] = strtok_r(cmd_copy, " ", &strtok_ptr);
   while (argv[index] != NULL) {
     index++;
-    argv[index] = strtok_r(NULL, " ", &save_ptr);
+    argv[index] = strtok_r(NULL, " ", &strtok_ptr);
   }
   int argc = index;
 
@@ -315,7 +314,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
   /* Set up stack. */
-  if (!setup_stack (esp, file_name, argv, argc))
+  if (!setup_stack (esp, argv, argc))
     goto done;
 
   /* Start address. */
@@ -437,7 +436,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool setup_stack (void **esp, char* cmd_line, char** argv, int argc)
+static bool setup_stack (void **esp, char** argv, int argc)
 {
   uint8_t *kpage;
   bool success = false;
@@ -492,12 +491,11 @@ static bool setup_stack (void **esp, char* cmd_line, char** argv, int argc)
         *myesp = 0;
         // update original stack pointer
         *esp = myesp;
+        hex_dump(*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
       } else {
         palloc_free_page (kpage);
       }
     }
-  // ASSERT(1 == 2);
-  hex_dump(*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
   return success;
 }
 
