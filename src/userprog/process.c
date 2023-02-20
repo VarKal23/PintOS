@@ -452,12 +452,15 @@ static bool setup_stack (void **esp, char** argv, int argc)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
+        for (int i = 0; i < argc; i++) {
+          printf("%s\n", argv[i]);
+        }
         // push args themselves
         char* myesp = (char*) *esp;
         char* addr_cpys[argc];
         for (int i = argc - 1; i >= 0; i--) {
           myesp = myesp - (strlen(argv[i]) + 1);
-          memcpy(myesp, argv[i], strlen(argv[i]) + 1);
+          memcpy(myesp, &argv[i], strlen(argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
         // add padding for alignment
@@ -465,32 +468,35 @@ static bool setup_stack (void **esp, char** argv, int argc)
         myesp = (uint8_t*) myesp;
         while((int) myesp % 4 != 0) {
           myesp--;
-          *myesp = 0;
+          uint8_t padding = 0;
+          memcpy(myesp, &padding, sizeof(uint8_t));
         }
         // push null pointer sentinel
         myesp = (char**) myesp;
         myesp--;
-        *myesp = NULL;
+        char* sentinel = NULL;
+        memcpy(myesp, &sentinel, sizeof(char*));
         // push pointers to args
         for (int i = argc-1; i >= 0; i--) {
           myesp--;
-          *myesp = argv[i];
+          memcpy(myesp, &argv[i], sizeof(char*));
         }
         // push pointer to argv
         char** argv_p = myesp;
         myesp = (char***) myesp;
         myesp--;
-        *myesp = argv_p;
+        memcpy(myesp, &argv_p, sizeof(char**));
         // push argc
         myesp = (int*) myesp;
         myesp--;
-        *myesp = argc;
+        memcpy(myesp, &argc, sizeof(int));
         // push return address
-        myesp = (void*) myesp;
+        myesp = (void**) myesp;
         myesp--;
-        *myesp = 0;
+        void* ret_addr = NULL;
+        memcpy(myesp, &ret_addr, sizeof(void*));
         // update original stack pointer
-        *esp = myesp;
+        *esp = (void*) myesp;
         hex_dump(*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
       } else {
         palloc_free_page (kpage);
