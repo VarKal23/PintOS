@@ -460,27 +460,30 @@ static bool setup_stack (void **esp, char** argv, int argc)
         char* addr_cpys[argc];
         for (int i = argc - 1; i >= 0; i--) {
           myesp = myesp - (strlen(argv[i]) + 1);
-          printf("%s\n", argv[i]);
+          // printf("%s\n", argv[i]);
           memcpy(myesp, argv[i], strlen(argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
+        // printf("%c\n", *myesp);
         // add padding for alignment
         // can you change the pointer type like this?
-        myesp = (uint8_t*) myesp;
+        // myesp = (uint8_t*) myesp;
         while((int) myesp % 4 != 0) {
-          myesp--;
+          myesp = myesp - sizeof(uint8_t);
           uint8_t padding = 0;
           memcpy(myesp, &padding, sizeof(uint8_t));
         }
         // push null pointer sentinel
-        myesp = (char**) myesp;
-        myesp--;
-        char* sentinel = NULL;
+        // myesp = (char**) myesp;
+        // myesp--;
+        myesp = myesp - sizeof(char*);
+        char* sentinel = 0;
         memcpy(myesp, &sentinel, sizeof(char*));
         // push pointers to args
         for (int i = argc-1; i >= 0; i--) {
-          myesp--;
-          memcpy(myesp, &argv[i], sizeof(char*));
+          // myesp--;
+          myesp = myesp - sizeof(char*);
+          memcpy(myesp, &addr_cpys[i], sizeof(char*));
         }
         // push pointer to argv
         char** argv_p = myesp;
