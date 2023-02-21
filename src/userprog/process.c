@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool page_overflow (char* myesp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -441,10 +442,9 @@ static bool setup_stack (void **esp, char** argv, int argc)
   uint8_t *kpage;
   bool success = false;
 
-  // MAKE sure that arguments are less than pagesize
   if (argc > 128) {
-    // should we exit?
-    return success;
+    // should we call exit?
+    return false;
   }
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -457,45 +457,76 @@ static bool setup_stack (void **esp, char** argv, int argc)
         char* myesp = (char*) *esp;
         char* addr_cpys[argc];
         for (int i = argc - 1; i >= 0; i--) {
-          myesp = myesp - (strlen(argv[i]) + 1);
-          memcpy(myesp, argv[i], strlen(argv[i]) + 1);
+          myesp = myesp - (strlen (argv[i]) + 1);
+          if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
+          memcpy( myesp, argv[i], strlen (argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
         // add padding for alignment
-        // can you change the pointer type like this?
         while((int) myesp % 4 != 0) {
-          myesp = myesp - sizeof(uint8_t);
+          myesp = myesp - sizeof (uint8_t);
+          if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
           uint8_t padding = 0;
-          memcpy(myesp, &padding, sizeof(uint8_t));
+          memcpy (myesp, &padding, sizeof (uint8_t));
         }
         // push null pointer sentinel
-        myesp = myesp - sizeof(char*);
+        myesp = myesp - sizeof (char*);
+        if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
         char* sentinel = 0;
-        memcpy(myesp, &sentinel, sizeof(char*));
+        memcpy (myesp, &sentinel, sizeof (char*));
         // push pointers to args
         for (int i = argc-1; i >= 0; i--) {
-          myesp = myesp - sizeof(char*);
-          memcpy(myesp, &addr_cpys[i], sizeof(char*));
+          myesp = myesp - sizeof (char*);
+          if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
+          memcpy (myesp, &addr_cpys[i], sizeof (char*));
         }
         // push pointer to argv
         char** argv_p = myesp;
-        myesp = myesp - sizeof(char**);
-        memcpy(myesp, &argv_p, sizeof(char**));
+        myesp = myesp - sizeof (char**);
+        if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
+        memcpy (myesp, &argv_p, sizeof (char**));
         // push argc
-        myesp = myesp - sizeof(int);
-        memcpy(myesp, &argc, sizeof(int));
+        myesp = myesp - sizeof (int);
+        if (page_overflow (myesp)) {
+            palloc_free_page (kpage);
+            return false;
+          }
+        memcpy (myesp, &argc, sizeof (int));
         // push return address
-        myesp = myesp - sizeof(void*);
+        myesp = myesp - sizeof (void*);
+        if (page_overflow (myesp)) {
+          palloc_free_page (kpage);
+          return false;
+        }
         void* ret_addr = 0;
-        memcpy(myesp, &ret_addr, sizeof(void*));
+        memcpy (myesp, &ret_addr, sizeof (void*));
         // update original stack pointer
         *esp = (void*) myesp;
-        hex_dump(*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
+        hex_dump (*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
       } else {
         palloc_free_page (kpage);
       }
     }
   return success;
+}
+
+static bool page_overflow (char* myesp) {
+  return myesp < ((uint8_t*) PHYS_BASE) - PGSIZE;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
