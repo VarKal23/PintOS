@@ -442,9 +442,10 @@ static bool setup_stack (void **esp, char** argv, int argc)
   bool success = false;
 
   // MAKE sure that arguments are less than pagesize
-  // if (strlen(cmd_line) > PGSIZE) {
-  //   exit(1);
-  // }
+  if (argc > 128) {
+    // should we exit?
+    return success;
+  }
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL)
@@ -452,52 +453,40 @@ static bool setup_stack (void **esp, char** argv, int argc)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-        // for (int i = 0; i < argc; i++) {
-        //   printf("%s\n", argv[i]);
-        // }
         // push args themselves
         char* myesp = (char*) *esp;
         char* addr_cpys[argc];
         for (int i = argc - 1; i >= 0; i--) {
           myesp = myesp - (strlen(argv[i]) + 1);
-          // printf("%s\n", argv[i]);
           memcpy(myesp, argv[i], strlen(argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
-        // printf("%c\n", *myesp);
         // add padding for alignment
         // can you change the pointer type like this?
-        // myesp = (uint8_t*) myesp;
         while((int) myesp % 4 != 0) {
           myesp = myesp - sizeof(uint8_t);
           uint8_t padding = 0;
           memcpy(myesp, &padding, sizeof(uint8_t));
         }
         // push null pointer sentinel
-        // myesp = (char**) myesp;
-        // myesp--;
         myesp = myesp - sizeof(char*);
         char* sentinel = 0;
         memcpy(myesp, &sentinel, sizeof(char*));
         // push pointers to args
         for (int i = argc-1; i >= 0; i--) {
-          // myesp--;
           myesp = myesp - sizeof(char*);
           memcpy(myesp, &addr_cpys[i], sizeof(char*));
         }
         // push pointer to argv
         char** argv_p = myesp;
-        myesp = (char***) myesp;
-        myesp--;
+        myesp = myesp - sizeof(char**);
         memcpy(myesp, &argv_p, sizeof(char**));
         // push argc
-        myesp = (int*) myesp;
-        myesp--;
+        myesp = myesp - sizeof(int);
         memcpy(myesp, &argc, sizeof(int));
         // push return address
-        myesp = (void**) myesp;
-        myesp--;
-        void* ret_addr = NULL;
+        myesp = myesp - sizeof(void*);
+        void* ret_addr = 0;
         memcpy(myesp, &ret_addr, sizeof(void*));
         // update original stack pointer
         *esp = (void*) myesp;
