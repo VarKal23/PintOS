@@ -96,9 +96,13 @@ struct thread
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */
 
-  // Priority Donation fields
+  // Priority donation fields
   struct list locks_held;
   struct lock* lock_waiting;
+
+  // System call fields
+  struct thread* parent;
+  struct list child_processes;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
@@ -107,6 +111,13 @@ struct thread
 
   /* Owned by thread.c. */
   unsigned magic; /* Detects stack overflow. */
+};
+
+struct child_process {
+   tid_t tid;
+   int exit_status;
+   struct semaphore sema;
+   struct list_elem elem;
 };
 
 /* If false (default), use round-robin scheduler.

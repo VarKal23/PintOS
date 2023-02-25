@@ -26,30 +26,29 @@ static bool page_overflow (char* myesp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t process_execute (const char *file_name)
+tid_t process_execute (const char *cmd_line)
 {
   char *fn_copy;
   tid_t tid;
 
-  /* Make a copy of FILE_NAME.
+  /* Make a copy of command line.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, cmd_line, PGSIZE);
 
-  // parsing to get the actual file name
-  char* actual_name = malloc(strlen(fn_copy) + 1);
-  strlcpy (actual_name, fn_copy, strlen(fn_copy) + 1);
-  // is this ok?
-  char* strtok_ptr = actual_name;
-  actual_name = strtok_r(actual_name, " ", &strtok_ptr);
+  // parse to get the file name
+  char* file_name = malloc(strlen(fn_copy) + 1);
+  strlcpy (file_name, fn_copy, strlen(fn_copy) + 1);
+  char* strtok_ptr = file_name;
+  file_name = strtok_r(file_name, " ", &strtok_ptr);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (actual_name, PRI_DEFAULT, start_process, fn_copy);
+  /* Create a new thread to execute command line. */
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  // palloc_free_page(actual_name);
+  // palloc_free_page(file_name);
   return tid;
 }
 
@@ -93,16 +92,41 @@ static void start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait (tid_t child_tid UNUSED) { 
-  while (1) {
+  // while (1) {
 
+  // }
+  struct thread *cur = thread_current ();
+  struct list_elem *e;
+  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes); 
+  e = list_next (e))
+  {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    if (child->tid == child_tid) {
+      sema_down (&child->sema);
+      list_remove (e);
+      return child->exit_status;
+    }
   }
-  return -1; }
+  return -1; 
+}
 
+// TODO: will this work if the process is orphaned?
 /* Free the current process's resources. */
-void process_exit (void)
+void process_exit (int status)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  struct list_elem *e;
+  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes); 
+  e = list_next (e))
+  {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    if (child->tid == cur->tid) {
+      child->exit_status = status;
+      sema_up (&child->sema);
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
