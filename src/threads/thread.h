@@ -104,6 +104,9 @@ struct thread
   struct thread* parent;
   struct list child_processes;
 
+  struct semaphore* load_sema;
+  bool succesfully_loaded;
+
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
@@ -116,7 +119,7 @@ struct thread
 struct child_process {
    tid_t tid;
    int exit_status;
-   struct semaphore sema;
+   struct semaphore* exit_sema;
    struct list_elem elem;
 };
 
@@ -141,7 +144,7 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
-void thread_exit (void) NO_RETURN;
+void thread_exit (int status) NO_RETURN;
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */

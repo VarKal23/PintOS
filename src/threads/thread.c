@@ -199,6 +199,12 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  struct child_process *child = malloc(sizeof(struct child_process));
+  sema_init(&child->exit_sema, 0);
+  child->tid = tid;
+  // TODO: initialize bools to false?
+  list_insert (list_end (&thread_current()->child_processes), &child->elem);
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -450,7 +456,7 @@ static void kernel_thread (thread_func *function, void *aux)
 
   intr_enable (); /* The scheduler runs with interrupts off. */
   function (aux); /* Execute the thread function. */
-  thread_exit (); /* If function() returns, kill the thread. */
+  thread_exit (-1); /* If function() returns, kill the thread. */
 }
 
 /* Returns the running thread. */
@@ -493,7 +499,10 @@ int priority)
   t->magic = THREAD_MAGIC;
 
   t->lock_waiting = NULL;
+  t->parent = NULL;
   list_init (&t->locks_held);
+  list_init (&t->child_processes);
+  sema_init(&t->load_sema, 0);
   
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
