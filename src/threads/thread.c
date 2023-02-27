@@ -503,6 +503,7 @@ int priority)
   list_init (&t->locks_held);
   list_init (&t->child_processes);
   sema_init(&t->load_sema, 0);
+  // TODO: should we initialize fdt array here?
   
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

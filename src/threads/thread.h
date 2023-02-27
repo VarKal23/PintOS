@@ -107,6 +107,8 @@ struct thread
   struct semaphore* load_sema;
   bool succesfully_loaded;
 
+  struct file* fdt[64];
+
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
   uint32_t *pagedir; /* Page directory. */
