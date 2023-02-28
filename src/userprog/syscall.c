@@ -4,10 +4,12 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
+static struct lock file_lock;
 
 void syscall_init (void)
 {
@@ -19,7 +21,7 @@ bool valid_pointer (void* pointer) {
   return pointer && is_user_vaddr (pointer) && pagedir_get_page (thread_current()->pagedir, pointer);
 }
 
-bool valid_args (void* base, int num_args) {
+bool valid_args (char* base, int num_args) {
   for (int i = 0; i < num_args; i++) {
     // each arg takes up 4 bytes
     if (!valid_pointer(base + 4*i)) return false;
@@ -38,7 +40,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
   }
   // syscall number is stored at esp, args begin at esp + 4
   int syscall_number = *(int *) esp;
-  esp += 4;
+  esp = (char*) esp + 4;
 
   if (syscall_number == SYS_HALT) {
     shutdown_power_off();
@@ -121,8 +123,11 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
 
     int fd = *(int *) esp;
-    void* buf = esp;
+    void* buf = (void*) esp;
     unsigned size = *(unsigned*) esp;
+
+    printf("%d", fd);
+
     if (fd == 1) {
       putbuf(buf, size);
       f->eax = size;

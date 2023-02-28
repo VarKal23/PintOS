@@ -50,7 +50,7 @@ tid_t process_execute (const char *cmd_line)
 
   struct thread *cur = thread_current ();
   // TODO: do we need a load sema for each child process or can we just have one per thread?
-  sema_down(cur->load_sema);
+  sema_down(&cur->load_sema);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
@@ -79,7 +79,7 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
-  sema_up (cur->load_sema);
+  sema_up (&cur->load_sema);
 
   if (!cur->succesfully_loaded)
     thread_exit (-1);
@@ -111,7 +111,7 @@ int process_wait (tid_t child_tid UNUSED) {
   {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == child_tid) {
-      sema_down (child->exit_sema);
+      sema_down (&child->exit_sema);
       list_remove (e);
       return child->exit_status;
     }
@@ -133,7 +133,7 @@ void process_exit (int status)
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       child->exit_status = status;
-      sema_up (child->exit_sema);
+      sema_up (&child->exit_sema);
     }
   }
 
