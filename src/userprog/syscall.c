@@ -97,7 +97,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       process_exit (-1);
       return;
     }
-
     char* file_name = *(char**) esp;
     lock_acquire(&file_lock);
     struct file* fp = filesys_open(file_name);

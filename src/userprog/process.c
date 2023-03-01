@@ -22,6 +22,7 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool page_overflow (char* myesp);
 
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -30,7 +31,6 @@ tid_t process_execute (const char *cmd_line)
 {
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of command line.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -46,15 +46,29 @@ tid_t process_execute (const char *cmd_line)
 
   /* Create a new thread to execute command line. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  free(file_name);
 
   struct thread *cur = thread_current ();
+  // cur->name = *file_name;
+  free(file_name);
+  struct list_elem* e;
+  while (e != list_end (&cur->parent->child_processes)) {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    if (child->tid == cur->tid) {
+      sema_up (&child->exit_sema);
+      // Added so child process won't end before parent can reap exit status
+      sema_down(&child->wait_reap_sema);
+      break;
+    }
+    if (e != list_end(&cur->parent->child_processes))
+      break;
+    else 
+      e = list_next(e);
+  }
   // TODO: do we need a load sema for each child process or can we just have one per thread?
   sema_down(&cur->load_sema);
-
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  if (!cur->succesfully_loaded) {
+  if (!cur->successfully_loaded) {
     return -1;
   }
   return tid;
@@ -74,16 +88,37 @@ static void start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   struct thread *cur = thread_current ();
-  cur->succesfully_loaded = load (file_name, &if_.eip, &if_.esp);
-
+  cur->successfully_loaded = load (file_name, &if_.eip, &if_.esp);
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  sema_up(&cur->load_sema);
+  // TODO: change from here
+  // struct thread *parent = thread_current()->parent;
+  // tid_t tid = thread_current()->tid;
+  // struct child_process *ch = NULL;
+  // struct list_elem *e;
 
-  sema_up (&cur->load_sema);
+  // for(e = list_begin(&parent->child_processes); e != list_end(&parent->child_processes); e = list_next(e))
+  // {
+  //   struct child_process *temp_ch = list_entry(e, struct child_process, elem);
+  //   if(temp_ch->tid == tid)
+  //   {
+  //     ch = temp_ch;
+  //     break;
+  //   }
+  // }
 
-  if (!cur->succesfully_loaded)
-    thread_exit (-1);
-
+  // if (!success) 
+  // {
+  //   ch->exit_status = false;
+  //   sema_up(&ch->wait_reap_sema);
+  //   thread_exit (-1);
+  // }
+  // else
+  // {
+  //   ch->exit_status = true;
+  //   sema_up(&ch->wait_reap_sema);
+  // }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -104,6 +139,7 @@ static void start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int process_wait (tid_t child_tid UNUSED) { 
+
   struct thread *cur = thread_current ();
   struct list_elem *e;
   for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes); 
@@ -112,8 +148,10 @@ int process_wait (tid_t child_tid UNUSED) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == child_tid) {
       sema_down (&child->exit_sema);
+      int cur_exit_status = child->exit_status;
+      sema_up(&child->wait_reap_sema);
       list_remove (e);
-      return child->exit_status;
+      return cur_exit_status;
     }
   }
   return -1; 
@@ -126,17 +164,23 @@ void process_exit (int status)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  struct list_elem *e;
-  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes); 
-  e = list_next (e))
-  {
+  printf("%s: exit(%d)\n", cur->name, status);
+  // ASSERT(1 == 2);
+  struct list_elem *e = list_begin (&cur->parent->child_processes);
+  while (e != list_end (&cur->parent->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       child->exit_status = status;
       sema_up (&child->exit_sema);
+      // Added so child process won't end before parent can reap exit status
+      sema_down(&child->wait_reap_sema);
+      break;
     }
+    if (e != list_end(&cur->parent->child_processes))
+      break;
+    else 
+      e = list_next(e);
   }
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -277,7 +321,6 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", argv[0]);
       goto done;
     }
-
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr ||
       memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 ||
@@ -354,7 +397,6 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
   success = true;
-
 done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
@@ -551,7 +593,7 @@ static bool setup_stack (void **esp, char** argv, int argc)
         memcpy (myesp, &ret_addr, sizeof (void*));
         // update original stack pointer
         *esp = (void*) myesp;
-        hex_dump (*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
+        // hex_dump (*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
       } else {
         palloc_free_page (kpage);
       }

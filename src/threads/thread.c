@@ -201,6 +201,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
 
   struct child_process *child = malloc(sizeof(struct child_process));
   sema_init(&child->exit_sema, 0);
+  sema_init(&child->wait_reap_sema, 0);
   child->tid = tid;
   // TODO: initialize bools to false?
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
@@ -460,7 +461,6 @@ static void kernel_thread (thread_func *function, void *aux)
 }
 
 /* Returns the running thread. */
-// No idea how this works
 struct thread *running_thread (void)
 {
   uint32_t *esp;
@@ -499,7 +499,7 @@ int priority)
   t->magic = THREAD_MAGIC;
 
   t->lock_waiting = NULL;
-  t->parent = NULL;
+  t->parent = running_thread();
   list_init (&t->locks_held);
   list_init (&t->child_processes);
   sema_init(&t->load_sema, 0);
