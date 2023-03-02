@@ -51,24 +51,23 @@ tid_t process_execute (const char *cmd_line)
   // cur->name = *file_name;
   free(file_name);
   struct list_elem* e;
-  while (e != list_end (&cur->parent->child_processes)) {
+  bool successfully_loaded;
+  while (e != list_end (&cur->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
-    if (child->tid == cur->tid) {
-      sema_up (&child->exit_sema);
-      // Added so child process won't end before parent can reap exit status
-      sema_down(&child->wait_reap_sema);
+    if (child->tid == tid) {
+      sema_down(&child->load_sema);
+      successfully_loaded = child->successfully_loaded;
       break;
     }
-    if (e != list_end(&cur->parent->child_processes))
+    if (e != list_end(&cur->child_processes))
       break;
     else 
       e = list_next(e);
   }
-  // TODO: do we need a load sema for each child process or can we just have one per thread?
-  sema_down(&cur->load_sema);
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  if (!cur->successfully_loaded) {
+  if (!successfully_loaded) {
     return -1;
   }
   return tid;
@@ -88,37 +87,30 @@ static void start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   struct thread *cur = thread_current ();
-  cur->successfully_loaded = load (file_name, &if_.eip, &if_.esp);
+  bool successfully_loaded = load (file_name, &if_.eip, &if_.esp);
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  sema_up(&cur->load_sema);
-  // TODO: change from here
-  // struct thread *parent = thread_current()->parent;
-  // tid_t tid = thread_current()->tid;
-  // struct child_process *ch = NULL;
-  // struct list_elem *e;
 
-  // for(e = list_begin(&parent->child_processes); e != list_end(&parent->child_processes); e = list_next(e))
-  // {
-  //   struct child_process *temp_ch = list_entry(e, struct child_process, elem);
-  //   if(temp_ch->tid == tid)
-  //   {
-  //     ch = temp_ch;
-  //     break;
-  //   }
-  // }
+  struct list_elem* e;
+  while (e != list_end (&cur->parent->child_processes)) {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    if (child->tid == cur->tid) {
+      sema_up(&child->load_sema);
+      child->successfully_loaded = successfully_loaded;
+      break;
+    }
+    if (e != list_end(&cur->parent->child_processes))
+      break;
+    else 
+      e = list_next(e);
+  }
+  
 
-  // if (!success) 
-  // {
-  //   ch->exit_status = false;
-  //   sema_up(&ch->wait_reap_sema);
-  //   thread_exit (-1);
-  // }
-  // else
-  // {
-  //   ch->exit_status = true;
-  //   sema_up(&ch->wait_reap_sema);
-  // }
+  if (!successfully_loaded) 
+  {
+    thread_exit (-1);
+  }
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -161,6 +153,7 @@ int process_wait (tid_t child_tid UNUSED) {
 /* Free the current process's resources. */
 void process_exit (int status)
 {
+  // printf("%d", status);
   struct thread *cur = thread_current ();
   uint32_t *pd;
 

@@ -202,6 +202,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   struct child_process *child = malloc(sizeof(struct child_process));
   sema_init(&child->exit_sema, 0);
   sema_init(&child->wait_reap_sema, 0);
+  sema_init(&child->load_sema, 0);
   child->tid = tid;
   // TODO: initialize bools to false?
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
@@ -502,7 +503,6 @@ int priority)
   t->parent = running_thread();
   list_init (&t->locks_held);
   list_init (&t->child_processes);
-  sema_init(&t->load_sema, 0);
   // TODO: should we initialize fdt array here?
   
   old_level = intr_disable ();

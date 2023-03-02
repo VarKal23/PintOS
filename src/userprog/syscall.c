@@ -51,6 +51,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     int status = *(int *) esp;
+    printf("%d", status);
     process_exit (status);
 
   } else if (syscall_number == SYS_EXEC) {
