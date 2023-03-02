@@ -31,6 +31,7 @@ bool valid_args (char* base, int num_args) {
 
 static void syscall_handler (struct intr_frame *f UNUSED)
 {
+  ASSERT(1 == 2);
   void *esp = f->esp;
   if (!valid_pointer (esp)) {
     // we can also call thread_exit
@@ -50,6 +51,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       process_exit (-1);
       return;
     }
+    ASSERT(1 == 2);
     int status = *(int *) esp;
     printf("%d", status);
     process_exit (status);

@@ -50,7 +50,7 @@ tid_t process_execute (const char *cmd_line)
   struct thread *cur = thread_current ();
   // cur->name = *file_name;
   free(file_name);
-  struct list_elem* e;
+  struct list_elem* e = list_begin(&cur->child_processes);
   bool successfully_loaded;
   while (e != list_end (&cur->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
@@ -91,7 +91,8 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
-  struct list_elem* e;
+  struct list_elem* e = &cur->child_processes;
+  ASSERT(1 == 2);
   while (e != list_end (&cur->parent->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
@@ -104,7 +105,6 @@ static void start_process (void *file_name_)
     else 
       e = list_next(e);
   }
-  
 
   if (!successfully_loaded) 
   {
@@ -156,9 +156,7 @@ void process_exit (int status)
   // printf("%d", status);
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
   printf("%s: exit(%d)\n", cur->name, status);
-  // ASSERT(1 == 2);
   struct list_elem *e = list_begin (&cur->parent->child_processes);
   while (e != list_end (&cur->parent->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
