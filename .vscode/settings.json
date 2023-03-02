@@ -19,6 +19,7 @@
         "vector": "c",
         "iterator": "c",
         "string_view": "c",
-        "switch.h": "c"
+        "switch.h": "c",
+        "list.h": "c"
     }
 }
