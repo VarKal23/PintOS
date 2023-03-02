@@ -91,8 +91,6 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   struct thread *cur = thread_current ();
-  // TODO: are we supposed to add this line?
-  // printf("(%s) begin\n", cur->name);
   struct list_elem* e;
   for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
            e = list_next (e)) {

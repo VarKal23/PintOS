@@ -14,7 +14,7 @@ static struct lock file_lock;
 void syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&file_lock);
+  lock_init (&file_lock);
 }
 
 bool valid_pointer (void* pointer) {
@@ -24,7 +24,7 @@ bool valid_pointer (void* pointer) {
 bool valid_args (char* base, int num_args) {
   for (int i = 0; i < num_args; i++) {
     // each arg takes up 4 bytes
-    if (!valid_pointer(base + 4*i)) return false;
+    if (!valid_pointer (base + 4*i)) return false;
   }
   return true;
 }
@@ -44,7 +44,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
   esp = (char*) esp + 4;
 
   if (syscall_number == SYS_HALT) {
-    shutdown_power_off();
+    shutdown_power_off ();
 
   } else if (syscall_number == SYS_EXIT) {
     if (!valid_args (esp, 1)) {
@@ -61,7 +61,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     char* cmd_line = *(char **) esp;
-    f->eax = process_execute(cmd_line);
+    f->eax = process_execute (cmd_line);
 
   } else if (syscall_number == SYS_WAIT) {
     if (!valid_args (esp, 1)) {
@@ -69,7 +69,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     tid_t tid = *(tid_t *) esp;
-    f->eax = process_wait(tid);
+    f->eax = process_wait (tid);
 
   } else if (syscall_number == SYS_CREATE) {
      if (!valid_args (esp, 2)) {
@@ -78,10 +78,14 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
     
     char* file_name = *(char**) esp;
+    if (!valid_pointer (file_name)) {
+      process_exit (-1);
+      return;
+    }
     unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
-    lock_acquire(&file_lock);
-    f->eax = filesys_create(file_name, initial_size);
-    lock_release(&file_lock);
+    lock_acquire (&file_lock);
+    f->eax = filesys_create (file_name, initial_size);
+    lock_release (&file_lock);
 
   } else if (syscall_number == SYS_REMOVE) {
      if (!valid_args (esp, 1)) {
@@ -90,9 +94,9 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
 
     char* file_name = *(char**) esp;
-    lock_acquire(&file_lock);
-    f->eax = filesys_remove(file_name);
-    lock_release(&file_lock);
+    lock_acquire (&file_lock);
+    f->eax = filesys_remove (file_name);
+    lock_release (&file_lock);
 
   } else if (syscall_number == SYS_OPEN) {
     if (!valid_args (esp, 1)) {
@@ -100,9 +104,13 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     char* file_name = *(char**) esp;
-    lock_acquire(&file_lock);
-    struct file* fp = filesys_open(file_name);
-    lock_release(&file_lock);
+    if (!valid_pointer (file_name)) {
+      process_exit (-1);
+      return;
+    }
+    lock_acquire (&file_lock);
+    struct file* fp = filesys_open (file_name);
+    lock_release (&file_lock);
 
     struct thread* cur_thread = thread_current();
     if (!fp) {
@@ -110,7 +118,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     } else {
       int index = 2;
       // TODO: do we need to handle case of running out of fdt spots?
-      while(cur_thread->fdt[index] != NULL) {
+      while (cur_thread->fdt[index] != NULL) {
         index++;
       }
       cur_thread->fdt[index] = fp;
@@ -124,27 +132,57 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
 
     int fd = *(int *) esp;
+    // TODO: increment esp pointer?
     char* buf = *(char**) ((char*) esp + 4);
+    if (!valid_pointer (buf)) {
+      process_exit (-1);
+      return;
+    }
     unsigned size = *(unsigned*) ((char*) esp + 8);
-
-    // printf("%d", fd);
-
-    // validate buffer?
+    // TODO: validate buffer?
 
     if (fd == 1) {
-      putbuf(buf, size);
+      putbuf (buf, size);
       f->eax = size;
     } else {
-      struct file* open_file = thread_current()->fdt[fd];
-      if (!open_file) {
+      struct file* file = thread_current ()->fdt[fd];
+      if (!file) {
         f->eax = -1;
         return;
       } 
-      lock_acquire(&file_lock);
-      f->eax = file_write(open_file, buf, size);
-      lock_release(&file_lock);
+      lock_acquire (&file_lock);
+      f->eax = file_write (file, buf, size);
+      lock_release (&file_lock);
+    }
+  } else if (syscall_number == SYS_READ) {
+    // TODO: change up this function
+    if (!valid_args (esp, 3)) {
+      process_exit (-1);
+      return;
     }
 
+    int fd = *(int *) esp;
+    char* buf = *(char**) ((char*) esp + 4);
+    if (!valid_pointer (buf)) {
+      process_exit (-1);
+      return;
+    }
+    unsigned size = *(unsigned*) ((char*) esp + 8);
+    if (fd == 0) {
+      for (int i = 0; i < size; i++) {
+        buf[i] = input_getc ();
+      }
+      f->eax = size;
+    } else {
+      struct file* file = thread_current ()->fdt[fd];
+      if (!file) {
+        f->eax = -1;
+        return;
+      } 
+      lock_acquire (&file_lock);
+      f->eax = file_read (file, buf, size);
+      lock_release (&file_lock);
+    }
   }
 
 }
