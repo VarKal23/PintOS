@@ -46,25 +46,22 @@ tid_t process_execute (const char *cmd_line)
 
   /* Create a new thread to execute command line. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-
   struct thread *cur = thread_current ();
   // cur->name = *file_name;
   free(file_name);
-  struct list_elem* e = list_begin(&cur->child_processes);
+  struct list_elem* e;
   bool successfully_loaded;
-  while (e != list_end (&cur->child_processes)) {
+
+  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
+           e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
+    // printf("%d", child->tid);
     if (child->tid == tid) {
       sema_down(&child->load_sema);
       successfully_loaded = child->successfully_loaded;
       break;
     }
-    if (e != list_end(&cur->child_processes))
-      break;
-    else 
-      e = list_next(e);
   }
-  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   if (!successfully_loaded) {
@@ -91,19 +88,15 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
-  struct list_elem* e = &cur->child_processes;
-  ASSERT(1 == 2);
-  while (e != list_end (&cur->parent->child_processes)) {
+  struct list_elem* e;
+  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
+           e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       sema_up(&child->load_sema);
       child->successfully_loaded = successfully_loaded;
       break;
     }
-    if (e != list_end(&cur->parent->child_processes))
-      break;
-    else 
-      e = list_next(e);
   }
 
   if (!successfully_loaded) 
@@ -158,7 +151,8 @@ void process_exit (int status)
   uint32_t *pd;
   printf("%s: exit(%d)\n", cur->name, status);
   struct list_elem *e = list_begin (&cur->parent->child_processes);
-  while (e != list_end (&cur->parent->child_processes)) {
+  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
+           e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       child->exit_status = status;
@@ -167,10 +161,6 @@ void process_exit (int status)
       sema_down(&child->wait_reap_sema);
       break;
     }
-    if (e != list_end(&cur->parent->child_processes))
-      break;
-    else 
-      e = list_next(e);
   }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
