@@ -41,17 +41,22 @@ tid_t process_execute (const char *cmd_line)
   // parse to get the file name
   char* file_name = malloc(strlen(fn_copy) + 1);
   strlcpy (file_name, fn_copy, strlen(fn_copy) + 1);
+  // TODO: is this fine?
   char* strtok_ptr = file_name;
   file_name = strtok_r(file_name, " ", &strtok_ptr);
 
   /* Create a new thread to execute command line. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  struct thread *cur = thread_current ();
   // cur->name = *file_name;
   free(file_name);
+  if (tid == TID_ERROR) {
+    palloc_free_page (fn_copy);
+    return -1;
+  }
+
+  struct thread *cur = thread_current ();
   struct list_elem* e;
   bool successfully_loaded;
-
   for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
            e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
@@ -62,8 +67,7 @@ tid_t process_execute (const char *cmd_line)
       break;
     }
   }
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+  
   if (!successfully_loaded) {
     return -1;
   }
@@ -83,11 +87,12 @@ static void start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  struct thread *cur = thread_current ();
   bool successfully_loaded = load (file_name, &if_.eip, &if_.esp);
   /* If load failed, quit. */
   palloc_free_page (file_name);
-
+  struct thread *cur = thread_current ();
+  // TODO: are we supposed to add this line?
+  // printf("(%s) begin\n", cur->name);
   struct list_elem* e;
   for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
            e = list_next (e)) {
@@ -99,6 +104,7 @@ static void start_process (void *file_name_)
     }
   }
 
+  // TODO: why do we need this?
   if (!successfully_loaded) 
   {
     thread_exit (-1);
@@ -135,6 +141,7 @@ int process_wait (tid_t child_tid UNUSED) {
       sema_down (&child->exit_sema);
       int cur_exit_status = child->exit_status;
       sema_up(&child->wait_reap_sema);
+      // TODO: call free?
       list_remove (e);
       return cur_exit_status;
     }
@@ -147,10 +154,10 @@ int process_wait (tid_t child_tid UNUSED) {
 void process_exit (int status)
 {
   // printf("%d", status);
-  struct thread *cur = thread_current ();
   uint32_t *pd;
+  struct thread *cur = thread_current ();
   printf("%s: exit(%d)\n", cur->name, status);
-  struct list_elem *e = list_begin (&cur->parent->child_processes);
+  struct list_elem *e;
   for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
            e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
@@ -288,6 +295,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   int index = 0;
   char* cmd_copy = malloc(strlen(file_name) + 1);
   strlcpy (cmd_copy, file_name, strlen(file_name) + 1);
+  // TODO: is this ok?
   char* strtok_ptr = cmd_copy;
   argv[index] = strtok_r(cmd_copy, " ", &strtok_ptr);
   while (argv[index] != NULL) {
@@ -379,6 +387,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
   success = true;
 done:
+  // TODO: Add anything here?
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   return success;

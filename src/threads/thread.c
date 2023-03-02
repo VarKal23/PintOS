@@ -204,7 +204,9 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   sema_init(&child->wait_reap_sema, 0);
   sema_init(&child->load_sema, 0);
   child->tid = tid;
-  // TODO: initialize bools to false?
+  child->successfully_loaded = false;
+  child->exit_status = 0;
+  // TODO: is child->elem null?
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
 
   /* Add to run queue. */

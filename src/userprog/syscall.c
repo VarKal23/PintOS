@@ -33,8 +33,9 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 {
   void *esp = f->esp;
   if (!valid_pointer (esp)) {
-    // we can also call thread_exit
-    // but what status do we pass?
+    // TODO: call process exit?
+    // and with what status?
+    // remember you changed the call in some other files too
     process_exit (-1);
     return;
   }
@@ -51,7 +52,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     int status = *(int *) esp;
-    printf("%d", status);
+    // printf("%d", status);
     process_exit (status);
 
   } else if (syscall_number == SYS_EXEC) {
@@ -77,7 +78,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
     
     char* file_name = *(char**) esp;
-    unsigned int initial_size = *(unsigned int*) esp;
+    unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
     lock_acquire(&file_lock);
     f->eax = filesys_create(file_name, initial_size);
     lock_release(&file_lock);
@@ -123,10 +124,12 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
 
     int fd = *(int *) esp;
-    void* buf = (void*) esp;
-    unsigned size = *(unsigned*) esp;
+    char* buf = *(char**) ((char*) esp + 4);
+    unsigned size = *(unsigned*) ((char*) esp + 8);
 
-    printf("%d", fd);
+    // printf("%d", fd);
+
+    // validate buffer?
 
     if (fd == 1) {
       putbuf(buf, size);
