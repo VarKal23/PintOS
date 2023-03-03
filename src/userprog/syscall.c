@@ -184,7 +184,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       lock_release (&file_lock);
     }
   } else if (syscall_number == SYS_FILESIZE) {
-    if (!valid_args (esp, 3)) {
+    if (!valid_args (esp, 1)) {
       thread_exit (-1);
       return;
     }
@@ -200,6 +200,56 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     f->eax = file_length (file);
     lock_release (&file_lock);
   } else if (syscall_number == SYS_SEEK) {
-    
+    if (!valid_args (esp, 2)) {
+      thread_exit (-1);
+      return;
+    }
+
+    int fd = *(int *) esp;
+    unsigned int pos = *(unsigned int*) ((char*) esp + 4);
+    struct file* file = thread_current ()->fdt[fd];
+    if(file == NULL) {
+      return;
+    }
+    else {
+      lock_acquire (&file_lock);
+      file_seek(file, pos);
+      lock_release (&file_lock);
+    }
+
+  } else if (syscall_number == SYS_TELL) {
+    if (!valid_args (esp, 1)) {
+      thread_exit (-1);
+      return;
+    }
+
+    int fd = *(int *) esp;
+    struct file* file = thread_current ()->fdt[fd];
+    if (!file) {
+      f->eax = -1;
+    } else {
+      lock_acquire (&file_lock);
+      f->eax = file_tell(file);
+      lock_release (&file_lock);
+    }
+
+  } else if (syscall_number == SYS_CLOSE) {
+    if (!valid_args (esp, 1)) {
+      thread_exit (-1);
+      return;
+    }
+
+    int fd = *(int *) esp;
+    struct file* file = thread_current ()->fdt[fd];
+    if(!file) {
+      return;
+    }
+    else {
+      lock_acquire (&file_lock);
+      file_close(file);
+      thread_current ()->fdt[fd] = NULL;
+      lock_release (&file_lock);
+      free(file);
+    }
   }
 }
