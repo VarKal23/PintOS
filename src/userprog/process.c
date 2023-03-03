@@ -26,6 +26,7 @@ static bool page_overflow (char* myesp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
+// Matthew Driving
 tid_t process_execute (const char *cmd_line)
 {
   char *fn_copy;
@@ -50,7 +51,7 @@ tid_t process_execute (const char *cmd_line)
     palloc_free_page (fn_copy);
     return -1;
   }
-  
+  //Varun Driving
   struct thread *cur = thread_current ();
   struct list_elem* e;
   bool successfully_loaded = false;
@@ -74,6 +75,7 @@ tid_t process_execute (const char *cmd_line)
 
 /* A thread function that loads a user process and starts it
    running. */
+// Varun Driving
 static void start_process (void *file_name_)
 {
   char *file_name = file_name_;
@@ -96,6 +98,7 @@ static void start_process (void *file_name_)
        e != list_end (&cur->parent->child_processes);
        e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
+    // Matthew Driving
     if (child->tid == cur->tid) {
       sema_up(&child->load_sema);
       child->successfully_loaded = success;
@@ -127,6 +130,7 @@ static void start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+// Varun Driving
 int process_wait (tid_t child_tid UNUSED) { 
 
   struct thread *cur = thread_current ();
@@ -135,6 +139,7 @@ int process_wait (tid_t child_tid UNUSED) {
        e != list_end (&cur->child_processes); 
        e = list_next (e))
   {
+    // Matthew Driving
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == child_tid) {
       sema_down (&child->exit_sema);
@@ -149,6 +154,7 @@ int process_wait (tid_t child_tid UNUSED) {
 }
 
 /* Free the current process's resources. */
+// Varun Driving
 void process_exit (int status)
 {
   // printf("%d", status);
@@ -163,6 +169,7 @@ void process_exit (int status)
       cur->fdt[i] = NULL;
     }
   }
+  // Matthew Driving
   file_close (cur->exe_file);
 
   while (!list_empty (&cur->child_processes))
@@ -173,7 +180,7 @@ void process_exit (int status)
     child->thread_ptr->parent = NULL;
     free(child);
   }
-
+  // Varun Driving
   struct list_elem *e;
   if (cur->parent) {
     for (e = list_begin (&cur->parent->child_processes); 
@@ -211,6 +218,7 @@ void process_exit (int status)
 /* Sets up the CPU for running user code in the current
    thread.
    This function is called on every context switch. */
+// Matthew Driving
 void process_activate (void)
 {
   struct thread *t = thread_current ();
@@ -296,6 +304,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
+// Varun Drivng
 bool load (const char *file_name, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
@@ -318,6 +327,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   strlcpy (cmd_copy, file_name, strlen(file_name) + 1);
   char* strtok_ptr = cmd_copy;
   argv[index] = strtok_r(cmd_copy, " ", &strtok_ptr);
+  // Matthew Driving
   while (argv[index] != NULL) {
     index++;
     argv[index] = strtok_r(NULL, " ", &strtok_ptr);
@@ -401,6 +411,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
             break;
         }
     }
+  // Varun Driving
   /* Set up stack. */
   if (!setup_stack (esp, argv, argc))
     goto done;
@@ -530,6 +541,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
+// Matthew Driving
 static bool setup_stack (void **esp, char** argv, int argc)
 {
   uint8_t *kpage;
@@ -558,6 +570,7 @@ static bool setup_stack (void **esp, char** argv, int argc)
           memcpy( myesp, argv[i], strlen (argv[i]) + 1);
           addr_cpys[i] = myesp;
         }
+        // Varun Driving
         // add padding for alignment
         while((int) myesp % 4 != 0) {
           myesp = myesp - sizeof (uint8_t);
@@ -575,6 +588,7 @@ static bool setup_stack (void **esp, char** argv, int argc)
             return false;
           }
         char* sentinel = 0;
+        // Matthew Driving
         memcpy (myesp, &sentinel, sizeof (char*));
         // push pointers to args
         for (int i = argc-1; i >= 0; i--) {
@@ -592,6 +606,7 @@ static bool setup_stack (void **esp, char** argv, int argc)
             palloc_free_page (kpage);
             return false;
           }
+        // Varun Driving
         memcpy (myesp, &argv_p, sizeof (char**));
         // push argc
         myesp = myesp - sizeof (int);

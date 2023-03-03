@@ -26,6 +26,7 @@ struct lock file_lock;
 
 // function to acquire the lock for manipulating files
 // used in process.c
+// Matthew Driving
 void acquire_file_lock () {
   lock_acquire (&file_lock);
 }
@@ -57,7 +58,7 @@ bool valid_args (char* base, int num_args) {
   }
   return true;
 }
-
+// Varun Driving
 static void syscall_handler (struct intr_frame *f UNUSED)
 {
   void *esp = f->esp;
@@ -80,6 +81,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       thread_exit(-1);
       return;
     }
+  // Matthew Driving
   } else {
     if (!valid_args(esp, 1)) {
       thread_exit(-1);
@@ -92,7 +94,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_EXIT) {
     exit(esp);
-
+  // Varun Driving
   } else if (syscall_number == SYS_EXEC) {
     exec(esp, f);
 
@@ -109,7 +111,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_REMOVE) {
     remove(esp, f);
-
+  // Matthew Driving
   } else if (syscall_number == SYS_OPEN) {
     char* file_name = *(char**) esp;
     if (!valid_pointer (file_name)) {
@@ -125,7 +127,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     write(esp, f, buf);
-
+  // Varun Driving
   } else if (syscall_number == SYS_READ) {
     char* buf = *(char**) ((char*) esp + 4);
     if (!valid_pointer (buf)) {
@@ -159,6 +161,7 @@ static void exit(void* esp) {
   thread_exit (status);
 }
 
+// Varun Driving
 // function to perform exec
 static void exec(void* esp, struct intr_frame* f) {
   char* cmd_line = *(char **) esp;
@@ -172,6 +175,7 @@ static void wait(void* esp, struct intr_frame* f) {
   f->eax = process_wait (tid);
 }
 
+// Matthew Driving
 // function to perform create
 static void create(void* esp, struct intr_frame* f, char* file_name) {
   unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
@@ -188,6 +192,7 @@ static void remove(void* esp, struct intr_frame* f) {
   lock_release (&file_lock);
 }
 
+// Varun Driving
 // function to perform open
 static void open(struct intr_frame* f, char* file_name) {
   lock_acquire (&file_lock);
@@ -207,6 +212,7 @@ static void open(struct intr_frame* f, char* file_name) {
   } 
 }
 
+// Matthew Driving
 // function to perform write
 static void write(void* esp, struct intr_frame* f, char* buf) {
   int fd = *(int *) esp;
@@ -239,6 +245,7 @@ static void read(void* esp, struct intr_frame* f, char* buf) {
     lock_release (&file_lock);
     f->eax = size;
   } else {
+    // Varun Driving
     struct file* file = thread_current ()->fdt[fd];
     if (!file) {
       f->eax = -1;
@@ -249,6 +256,7 @@ static void read(void* esp, struct intr_frame* f, char* buf) {
   }
 }
 
+// Matthew Driving
 // function to perform filesize
 static void filesize(void* esp, struct intr_frame* f) {
   int fd = *(int *) esp;
@@ -261,6 +269,7 @@ static void filesize(void* esp, struct intr_frame* f) {
   lock_release (&file_lock);
 }
 
+// Varun Driving
 // function to perform seek
 static void seek(void* esp) {
   int fd = *(int *) esp;
@@ -286,6 +295,7 @@ static void tell(void* esp, struct intr_frame* f) {
   }
 }
 
+// Matthew Driving
 // function to perform close
 static void close(void* esp) {
   int fd = *(int *) esp;

@@ -199,6 +199,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+   // Matthew Driving
   struct child_process *child = malloc(sizeof(struct child_process));
   sema_init(&child->exit_sema, 0);
   sema_init(&child->wait_reap_sema, 0);
