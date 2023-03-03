@@ -77,7 +77,7 @@ static void kill (struct intr_frame *f)
      exception originated. */
   switch (f->cs)
     {
-      // test
+      // test 
       case SEL_UCSEG:
         /* User's code segment, so it's a user exception, as we
            expected.  Kill the user process.  */
