@@ -153,18 +153,6 @@ void process_exit (int status)
   uint32_t *pd;
   struct thread *cur = thread_current ();
   printf("%s: exit(%d)\n", cur->name, status);
-  struct list_elem *e;
-  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
-           e = list_next (e)) {
-    struct child_process* child = list_entry (e, struct child_process, elem);
-    if (child->tid == cur->tid) {
-      child->exit_status = status;
-      sema_up (&child->exit_sema);
-      // Added so child process won't end before parent can reap exit status
-      sema_down (&child->wait_reap_sema);
-      break;
-    }
-  }
 
   // close all files that are still open
   for (int i = 2; i < 64; i++) {
@@ -174,6 +162,28 @@ void process_exit (int status)
     }
   }
   file_close (cur->exe_file);
+
+  struct list_elem *e;
+  // TODO: change?
+  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
+           e = list_next (e)) {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    if (child->tid == cur->tid) {
+      child->exit_status = status;
+      sema_up (&child->exit_sema);
+      // added so child process won't end before parent can reap exit status
+      sema_down (&child->wait_reap_sema);
+      break;
+    }
+  }
+
+  // call sema_up on the wait reap sema of any children processes still running
+  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
+           e = list_next (e)) {
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    sema_up (&child->wait_reap_sema);
+  }
+  // TODO: call free/list remove?
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
