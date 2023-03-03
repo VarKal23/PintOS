@@ -127,6 +127,7 @@ struct child_process {
    struct semaphore load_sema;
    bool successfully_loaded;
    struct list_elem elem;
+   struct thread* thread_ptr;
 };
 
 /* If false (default), use round-robin scheduler.

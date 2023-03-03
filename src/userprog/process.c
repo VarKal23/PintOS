@@ -101,7 +101,7 @@ static void start_process (void *file_name_)
     }
   }
 
-  if (!successfully_loaded) 
+  if (!successfully_loaded)
   {
     thread_exit (-1);
   }
@@ -137,15 +137,14 @@ int process_wait (tid_t child_tid UNUSED) {
       sema_down (&child->exit_sema);
       int cur_exit_status = child->exit_status;
       sema_up(&child->wait_reap_sema);
-      // TODO: call free?
       list_remove (e);
+      free(child);
       return cur_exit_status;
     }
   }
   return -1; 
 }
 
-// TODO: will this work if the process is orphaned?
 /* Free the current process's resources. */
 void process_exit (int status)
 {
@@ -155,8 +154,7 @@ void process_exit (int status)
   printf("%s: exit(%d)\n", cur->name, status);
 
   // close all files that are still open
-  // TODO: change up?
-  acquire_file_lock ();
+  // TODO: why did acquiring the lock here cause an error
   for (int i = 2; i < 64; i++) {
     if (cur->fdt[i]) {
       file_close (cur->fdt[i]);
@@ -164,19 +162,20 @@ void process_exit (int status)
     }
   }
   file_close (cur->exe_file);
-  release_file_lock ();
 
   struct list_elem *e;
   // TODO: change?
-  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
-           e = list_next (e)) {
-    struct child_process* child = list_entry (e, struct child_process, elem);
-    if (child->tid == cur->tid) {
-      child->exit_status = status;
-      sema_up (&child->exit_sema);
-      // added so child process won't end before parent can reap exit status
-      sema_down (&child->wait_reap_sema);
-      break;
+  if (cur->parent) {
+    for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
+            e = list_next (e)) {
+      struct child_process* child = list_entry (e, struct child_process, elem);
+      if (child->tid == cur->tid) {
+        child->exit_status = status;
+        sema_up (&child->exit_sema);
+        // added so child process won't end before parent can reap exit status
+        sema_down (&child->wait_reap_sema);
+        break;
+      }
     }
   }
 
@@ -184,7 +183,10 @@ void process_exit (int status)
   for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
            e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
-    sema_up (&child->wait_reap_sema);
+    // sema_up (&child->wait_reap_sema);
+    child->thread_ptr->parent = NULL;
+    list_remove(e);
+    free(child);
   }
   // TODO: call free/list remove?
 
@@ -322,7 +324,6 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
     argv[index] = strtok_r(NULL, " ", &strtok_ptr);
   }
   int argc = index;
-
   acquire_file_lock ();
   file = filesys_open (argv[0]);
   if (file == NULL)
@@ -330,8 +331,8 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", argv[0]);
       goto done;
     }
-  thread_current ()->exe_file = file;
-  file_deny_write(thread_current ()->exe_file);
+  // thread_current ()->exe_file = file;
+  // file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr ||
       memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 ||
@@ -408,9 +409,13 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
   success = true;
+  // TODO: change
+  thread_current ()->exe_file = file;
+  file_deny_write(file);
 done:
+// TODO: change
+  free(cmd_copy);
   /* We arrive here whether the load is successful or not. */
-  // TODO: free something?
   if (!success) {
     // TODO: close file only if load failed right?
     file_close (file);

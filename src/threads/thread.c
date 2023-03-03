@@ -206,6 +206,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   child->tid = tid;
   child->successfully_loaded = false;
   child->exit_status = 0;
+  child->thread_ptr = t;
   // TODO: is child->elem null?
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
 
