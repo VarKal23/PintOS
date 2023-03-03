@@ -148,26 +148,31 @@ static void exit(void* esp) {
   int status = *(int *) esp;
   thread_exit (status);
 }
+
 static void exec(void* esp, struct intr_frame* f) {
   char* cmd_line = *(char **) esp;
   f->eax = process_execute (cmd_line);
 }
+
 static void wait(void* esp, struct intr_frame* f) {
   tid_t tid = *(tid_t *) esp;
   f->eax = process_wait (tid);
 }
+
 static void create(void* esp, struct intr_frame* f, char* file_name) {
   unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
   lock_acquire (&file_lock);
   f->eax = filesys_create (file_name, initial_size);
   lock_release (&file_lock);
 }
+
 static void remove(void* esp, struct intr_frame* f) {
   char* file_name = *(char**) esp;
   lock_acquire (&file_lock);
   f->eax = filesys_remove (file_name);
   lock_release (&file_lock);
 }
+
 static void open(struct intr_frame* f, char* file_name) {
   lock_acquire (&file_lock);
   struct file* fp = filesys_open (file_name);
@@ -185,6 +190,7 @@ static void open(struct intr_frame* f, char* file_name) {
     f->eax = index;
   } 
 }
+
 static void write(void* esp, struct intr_frame* f, char* buf) {
   int fd = *(int *) esp;
   unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -203,6 +209,7 @@ static void write(void* esp, struct intr_frame* f, char* buf) {
     lock_release (&file_lock);
   }
 }
+
 static void read(void* esp, struct intr_frame* f, char* buf) {
   int fd = *(int *) esp;
   unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -223,6 +230,7 @@ static void read(void* esp, struct intr_frame* f, char* buf) {
     lock_release (&file_lock);
   }
 }
+
 static void filesize(void* esp, struct intr_frame* f) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
@@ -244,6 +252,7 @@ static void seek(void* esp) {
     lock_release (&file_lock);
   }
 }
+
 static void tell(void* esp, struct intr_frame* f) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
@@ -255,6 +264,7 @@ static void tell(void* esp, struct intr_frame* f) {
     lock_release (&file_lock);
   }
 }
+
 static void close(void* esp) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
@@ -263,6 +273,5 @@ static void close(void* esp) {
     file_close(file);
     thread_current ()->fdt[fd] = NULL;
     lock_release (&file_lock);
-    // free(file);
   }
 }

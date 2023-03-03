@@ -207,7 +207,6 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   child->successfully_loaded = false;
   child->exit_status = 0;
   child->thread_ptr = t;
-  // TODO: is child->elem null?
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
 
   /* Add to run queue. */
@@ -506,7 +505,6 @@ int priority)
   t->parent = running_thread();
   list_init (&t->locks_held);
   list_init (&t->child_processes);
-  // TODO: should we initialize fdt array here?
   
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

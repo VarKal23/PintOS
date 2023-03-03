@@ -22,7 +22,6 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool page_overflow (char* myesp);
 
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -52,10 +51,10 @@ tid_t process_execute (const char *cmd_line)
     palloc_free_page (fn_copy);
     return -1;
   }
-
+  
   struct thread *cur = thread_current ();
   struct list_elem* e;
-  bool successfully_loaded;
+  bool successfully_loaded = false;
   for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
            e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
@@ -86,22 +85,24 @@ static void start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  bool successfully_loaded = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp);
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
   struct thread *cur = thread_current ();
+
   struct list_elem* e;
   for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
            e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       sema_up(&child->load_sema);
-      child->successfully_loaded = successfully_loaded;
+      child->successfully_loaded = success;
       break;
     }
   }
 
-  if (!successfully_loaded)
+  if (!success)
   {
     thread_exit (-1);
   }
@@ -163,8 +164,16 @@ void process_exit (int status)
   }
   file_close (cur->exe_file);
 
+  while (!list_empty (&cur->child_processes))
+  {
+    struct list_elem *e = list_pop_front (&cur->child_processes);
+    struct child_process* child = list_entry (e, struct child_process, elem);
+    // sema_up (&child->wait_reap_sema);
+    child->thread_ptr->parent = NULL;
+    free(child);
+  }
+
   struct list_elem *e;
-  // TODO: change?
   if (cur->parent) {
     for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
             e = list_next (e)) {
@@ -178,17 +187,6 @@ void process_exit (int status)
       }
     }
   }
-
-  // call sema_up on the wait reap sema of any children processes still running
-  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
-           e = list_next (e)) {
-    struct child_process* child = list_entry (e, struct child_process, elem);
-    // sema_up (&child->wait_reap_sema);
-    child->thread_ptr->parent = NULL;
-    list_remove(e);
-    free(child);
-  }
-  // TODO: call free/list remove?
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
