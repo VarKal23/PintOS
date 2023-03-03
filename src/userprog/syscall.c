@@ -147,7 +147,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       struct file* file = thread_current ()->fdt[fd];
       if (!file) {
         f->eax = -1;
-        return;
       } 
       lock_acquire (&file_lock);
       f->eax = file_write (file, buf, size);
@@ -159,7 +158,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       thread_exit (-1);
       return;
     }
-
     int fd = *(int *) esp;
     char* buf = *(char**) ((char*) esp + 4);
     if (!valid_pointer (buf)) {
@@ -177,7 +175,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       // printf("%p", file);
       if (!file) {
         f->eax = -1;
-        return;
       } 
       lock_acquire (&file_lock);
       f->eax = file_read (file, buf, size);
@@ -193,7 +190,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     struct file* file = thread_current ()->fdt[fd];
     if (!file) {
       f->eax = -1;
-      return;
     }
     // TODO: move locks?
     lock_acquire (&file_lock);
@@ -204,14 +200,10 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       thread_exit (-1);
       return;
     }
-
     int fd = *(int *) esp;
     unsigned int pos = *(unsigned int*) ((char*) esp + 4);
     struct file* file = thread_current ()->fdt[fd];
-    if(file == NULL) {
-      return;
-    }
-    else {
+    if (file) {
       lock_acquire (&file_lock);
       file_seek(file, pos);
       lock_release (&file_lock);
@@ -238,18 +230,14 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       thread_exit (-1);
       return;
     }
-
     int fd = *(int *) esp;
     struct file* file = thread_current ()->fdt[fd];
-    if(!file) {
-      return;
-    }
-    else {
+    if (file) {
       lock_acquire (&file_lock);
       file_close(file);
       thread_current ()->fdt[fd] = NULL;
       lock_release (&file_lock);
-      free(file);
+      // free(file);
     }
   }
 }

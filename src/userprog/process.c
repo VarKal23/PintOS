@@ -47,11 +47,9 @@ tid_t process_execute (const char *cmd_line)
 
   /* Create a new thread to execute command line. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  // cur->name = *file_name;
   free(file_name);
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
-    // new comment
     return -1;
   }
 
@@ -103,7 +101,6 @@ static void start_process (void *file_name_)
     }
   }
 
-  // TODO: why do we need this?
   if (!successfully_loaded) 
   {
     thread_exit (-1);
@@ -164,10 +161,20 @@ void process_exit (int status)
       child->exit_status = status;
       sema_up (&child->exit_sema);
       // Added so child process won't end before parent can reap exit status
-      sema_down(&child->wait_reap_sema);
+      sema_down (&child->wait_reap_sema);
       break;
     }
   }
+
+  // close all files that are still open
+  for (int i = 2; i < 64; i++) {
+    if (cur->fdt[i]) {
+      file_close (cur->fdt[i]);
+      cur->fdt[i] = NULL;
+    }
+  }
+  file_close (cur->exe_file);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -309,6 +316,8 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", argv[0]);
       goto done;
     }
+  thread_current ()->exe_file = file;
+  file_deny_write(thread_current ()->exe_file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr ||
       memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 ||
@@ -386,9 +395,12 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
   success = true;
 done:
-  // TODO: Add anything here?
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  // TODO: free something?
+  if (!success) {
+    // TODO: close file only if load failed right?
+    file_close (file);
+  }
   return success;
   
 }

@@ -106,6 +106,7 @@ struct thread
   struct list child_processes;
 
   struct file* fdt[64];
+  struct file* exe_file;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */
