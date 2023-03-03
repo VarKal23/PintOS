@@ -36,7 +36,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     // TODO: call process exit?
     // and with what status?
     // remember you changed the call in some other files too
-    process_exit (-1);
+    thread_exit (-1);
     return;
   }
   // syscall number is stored at esp, args begin at esp + 4
@@ -48,16 +48,16 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_EXIT) {
     if (!valid_args (esp, 1)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     int status = *(int *) esp;
     // printf("%d", status);
-    process_exit (status);
+    thread_exit (status);
 
   } else if (syscall_number == SYS_EXEC) {
     if (!valid_args (esp, 1)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     char* cmd_line = *(char **) esp;
@@ -65,7 +65,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_WAIT) {
     if (!valid_args (esp, 1)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     tid_t tid = *(tid_t *) esp;
@@ -73,13 +73,13 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_CREATE) {
      if (!valid_args (esp, 2)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     
     char* file_name = *(char**) esp;
     if (!valid_pointer (file_name)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
@@ -89,7 +89,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_REMOVE) {
      if (!valid_args (esp, 1)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
 
@@ -100,12 +100,12 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_OPEN) {
     if (!valid_args (esp, 1)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     char* file_name = *(char**) esp;
     if (!valid_pointer (file_name)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     lock_acquire (&file_lock);
@@ -117,7 +117,6 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       f->eax = -1;
     } else {
       int index = 2;
-      // TODO: do we need to handle case of running out of fdt spots?
       while (cur_thread->fdt[index] != NULL) {
         index++;
       }
@@ -127,7 +126,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_WRITE) {
     if (!valid_args (esp, 3)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
 
@@ -135,7 +134,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     // TODO: increment esp pointer?
     char* buf = *(char**) ((char*) esp + 4);
     if (!valid_pointer (buf)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -157,14 +156,14 @@ static void syscall_handler (struct intr_frame *f UNUSED)
   } else if (syscall_number == SYS_READ) {
     // TODO: change up this function
     if (!valid_args (esp, 3)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
 
     int fd = *(int *) esp;
     char* buf = *(char**) ((char*) esp + 4);
     if (!valid_pointer (buf)) {
-      process_exit (-1);
+      thread_exit (-1);
       return;
     }
     unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -175,6 +174,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       f->eax = size;
     } else {
       struct file* file = thread_current ()->fdt[fd];
+      printf("%p", file);
       if (!file) {
         f->eax = -1;
         return;

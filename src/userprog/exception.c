@@ -77,6 +77,7 @@ static void kill (struct intr_frame *f)
      exception originated. */
   switch (f->cs)
     {
+      // test
       case SEL_UCSEG:
         /* User's code segment, so it's a user exception, as we
            expected.  Kill the user process.  */
@@ -98,7 +99,6 @@ static void kill (struct intr_frame *f)
            kernel. */
         printf ("Interrupt %#04x (%s) in unknown segment %04x\n", f->vec_no,
                 intr_name (f->vec_no), f->cs);
-         ASSERT(1 == 2);
     }
 }
 
@@ -141,7 +141,6 @@ static void page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-   // TODO: were we supposed to add this?
   thread_exit(-1);
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

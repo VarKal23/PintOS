@@ -51,6 +51,7 @@ tid_t process_execute (const char *cmd_line)
   free(file_name);
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
+    // new comment
     return -1;
   }
 
