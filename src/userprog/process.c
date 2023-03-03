@@ -40,7 +40,6 @@ tid_t process_execute (const char *cmd_line)
   // parse to get the file name
   char* file_name = malloc(strlen(fn_copy) + 1);
   strlcpy (file_name, fn_copy, strlen(fn_copy) + 1);
-  // TODO: is this fine?
   char* strtok_ptr = file_name;
   file_name = strtok_r(file_name, " ", &strtok_ptr);
 
@@ -55,8 +54,9 @@ tid_t process_execute (const char *cmd_line)
   struct thread *cur = thread_current ();
   struct list_elem* e;
   bool successfully_loaded = false;
-  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes);
-           e = list_next (e)) {
+  for (e = list_begin (&cur->child_processes); 
+       e != list_end (&cur->child_processes);
+       e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     // printf("%d", child->tid);
     if (child->tid == tid) {
@@ -92,8 +92,9 @@ static void start_process (void *file_name_)
   struct thread *cur = thread_current ();
 
   struct list_elem* e;
-  for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
-           e = list_next (e)) {
+  for (e = list_begin (&cur->parent->child_processes); 
+       e != list_end (&cur->parent->child_processes);
+       e = list_next (e)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == cur->tid) {
       sema_up(&child->load_sema);
@@ -130,8 +131,9 @@ int process_wait (tid_t child_tid UNUSED) {
 
   struct thread *cur = thread_current ();
   struct list_elem *e;
-  for (e = list_begin (&cur->child_processes); e != list_end (&cur->child_processes); 
-  e = list_next (e))
+  for (e = list_begin (&cur->child_processes); 
+       e != list_end (&cur->child_processes); 
+       e = list_next (e))
   {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == child_tid) {
@@ -155,7 +157,6 @@ void process_exit (int status)
   printf("%s: exit(%d)\n", cur->name, status);
 
   // close all files that are still open
-  // TODO: why did acquiring the lock here cause an error
   for (int i = 2; i < 64; i++) {
     if (cur->fdt[i]) {
       file_close (cur->fdt[i]);
@@ -175,8 +176,9 @@ void process_exit (int status)
 
   struct list_elem *e;
   if (cur->parent) {
-    for (e = list_begin (&cur->parent->child_processes); e != list_end (&cur->parent->child_processes);
-            e = list_next (e)) {
+    for (e = list_begin (&cur->parent->child_processes); 
+         e != list_end (&cur->parent->child_processes);
+         e = list_next (e)) {
       struct child_process* child = list_entry (e, struct child_process, elem);
       if (child->tid == cur->tid) {
         child->exit_status = status;
@@ -314,7 +316,6 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   int index = 0;
   char* cmd_copy = malloc(strlen(file_name) + 1);
   strlcpy (cmd_copy, file_name, strlen(file_name) + 1);
-  // TODO: is this ok?
   char* strtok_ptr = cmd_copy;
   argv[index] = strtok_r(cmd_copy, " ", &strtok_ptr);
   while (argv[index] != NULL) {
@@ -407,15 +408,12 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
   success = true;
-  // TODO: change
   thread_current ()->exe_file = file;
   file_deny_write(file);
 done:
-// TODO: change
-  free(cmd_copy);
+  // free(cmd_copy);
   /* We arrive here whether the load is successful or not. */
   if (!success) {
-    // TODO: close file only if load failed right?
     file_close (file);
   }
   release_file_lock ();

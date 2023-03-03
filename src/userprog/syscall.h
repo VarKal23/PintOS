@@ -6,4 +6,3 @@ void acquire_file_lock ();
 void release_file_lock ();
 
 #endif /* userprog/syscall.h */
-

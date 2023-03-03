@@ -24,10 +24,13 @@ static void tell(void* esp, struct intr_frame* f);
 static void close(void* esp);
 struct lock file_lock;
 
+// function to acquire the lock for manipulating files
+// used in process.c
 void acquire_file_lock () {
   lock_acquire (&file_lock);
 }
 
+// function to release the lock for manipulating files
 void release_file_lock () {
   lock_release (&file_lock);
 }
@@ -38,10 +41,15 @@ void syscall_init (void)
   lock_init (&file_lock);
 }
 
+// function to validate a pointer. ensures that the pointer is not 
+// null doesn't point to unmapped virtual memory, and doesn't 
+// point to kernel virtual address space
 bool valid_pointer (void* pointer) {
-  return pointer && is_user_vaddr (pointer) && pagedir_get_page (thread_current()->pagedir, pointer);
+  return pointer && is_user_vaddr (pointer) 
+                 && pagedir_get_page (thread_current()->pagedir, pointer);
 }
 
+// validates all the arguments of a system call
 bool valid_args (char* base, int num_args) {
   for (int i = 0; i < num_args; i++) {
     // each arg takes up 4 bytes
@@ -140,25 +148,31 @@ static void syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
+// function to perform halt
 static void halt() {
   shutdown_power_off ();
 }
 
+// function to perform exit
 static void exit(void* esp) {
   int status = *(int *) esp;
   thread_exit (status);
 }
 
+// function to perform exec
 static void exec(void* esp, struct intr_frame* f) {
   char* cmd_line = *(char **) esp;
   f->eax = process_execute (cmd_line);
 }
 
+
+// function to perform wait
 static void wait(void* esp, struct intr_frame* f) {
   tid_t tid = *(tid_t *) esp;
   f->eax = process_wait (tid);
 }
 
+// function to perform create
 static void create(void* esp, struct intr_frame* f, char* file_name) {
   unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
   lock_acquire (&file_lock);
@@ -166,6 +180,7 @@ static void create(void* esp, struct intr_frame* f, char* file_name) {
   lock_release (&file_lock);
 }
 
+// function to perform remove
 static void remove(void* esp, struct intr_frame* f) {
   char* file_name = *(char**) esp;
   lock_acquire (&file_lock);
@@ -173,6 +188,7 @@ static void remove(void* esp, struct intr_frame* f) {
   lock_release (&file_lock);
 }
 
+// function to perform open
 static void open(struct intr_frame* f, char* file_name) {
   lock_acquire (&file_lock);
   struct file* fp = filesys_open (file_name);
@@ -191,6 +207,7 @@ static void open(struct intr_frame* f, char* file_name) {
   } 
 }
 
+// function to perform write
 static void write(void* esp, struct intr_frame* f, char* buf) {
   int fd = *(int *) esp;
   unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -210,6 +227,7 @@ static void write(void* esp, struct intr_frame* f, char* buf) {
   }
 }
 
+// function to perform read
 static void read(void* esp, struct intr_frame* f, char* buf) {
   int fd = *(int *) esp;
   unsigned size = *(unsigned*) ((char*) esp + 8);
@@ -231,6 +249,7 @@ static void read(void* esp, struct intr_frame* f, char* buf) {
   }
 }
 
+// function to perform filesize
 static void filesize(void* esp, struct intr_frame* f) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
@@ -242,6 +261,7 @@ static void filesize(void* esp, struct intr_frame* f) {
   lock_release (&file_lock);
 }
 
+// function to perform seek
 static void seek(void* esp) {
   int fd = *(int *) esp;
   unsigned int pos = *(unsigned int*) ((char*) esp + 4);
@@ -253,6 +273,7 @@ static void seek(void* esp) {
   }
 }
 
+// function to perform tell
 static void tell(void* esp, struct intr_frame* f) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
@@ -265,6 +286,7 @@ static void tell(void* esp, struct intr_frame* f) {
   }
 }
 
+// function to perform close
 static void close(void* esp) {
   int fd = *(int *) esp;
   struct file* file = thread_current ()->fdt[fd];
