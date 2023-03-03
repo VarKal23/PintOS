@@ -174,7 +174,7 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       f->eax = size;
     } else {
       struct file* file = thread_current ()->fdt[fd];
-      printf("%p", file);
+      // printf("%p", file);
       if (!file) {
         f->eax = -1;
         return;
@@ -183,6 +183,23 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       f->eax = file_read (file, buf, size);
       lock_release (&file_lock);
     }
-  }
+  } else if (syscall_number == SYS_FILESIZE) {
+    if (!valid_args (esp, 3)) {
+      thread_exit (-1);
+      return;
+    }
 
+    int fd = *(int *) esp;
+    struct file* file = thread_current ()->fdt[fd];
+    if (!file) {
+      f->eax = -1;
+      return;
+    }
+    // TODO: move locks?
+    lock_acquire (&file_lock);
+    f->eax = file_length (file);
+    lock_release (&file_lock);
+  } else if (syscall_number == SYS_SEEK) {
+    
+  }
 }
