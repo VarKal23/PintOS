@@ -11,6 +11,14 @@
 static void syscall_handler (struct intr_frame *);
 struct lock file_lock;
 
+void acquire_file_lock () {
+  lock_acquire (&file_lock);
+}
+
+void release_file_lock () {
+  lock_release (&file_lock);
+}
+
 void syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -141,7 +149,9 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     // TODO: validate buffer?
 
     if (fd == 1) {
+      lock_acquire (&file_lock);
       putbuf (buf, size);
+      lock_release (&file_lock);
       f->eax = size;
     } else {
       struct file* file = thread_current ()->fdt[fd];
@@ -166,9 +176,11 @@ static void syscall_handler (struct intr_frame *f UNUSED)
     }
     unsigned size = *(unsigned*) ((char*) esp + 8);
     if (fd == 0) {
+      lock_acquire (&file_lock);
       for (int i = 0; i < size; i++) {
         buf[i] = input_getc ();
       }
+      lock_release (&file_lock);
       f->eax = size;
     } else {
       struct file* file = thread_current ()->fdt[fd];

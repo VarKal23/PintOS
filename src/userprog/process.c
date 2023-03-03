@@ -155,6 +155,8 @@ void process_exit (int status)
   printf("%s: exit(%d)\n", cur->name, status);
 
   // close all files that are still open
+  // TODO: change up?
+  acquire_file_lock ();
   for (int i = 2; i < 64; i++) {
     if (cur->fdt[i]) {
       file_close (cur->fdt[i]);
@@ -162,6 +164,7 @@ void process_exit (int status)
     }
   }
   file_close (cur->exe_file);
+  release_file_lock ();
 
   struct list_elem *e;
   // TODO: change?
@@ -320,6 +323,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   }
   int argc = index;
 
+  acquire_file_lock ();
   file = filesys_open (argv[0]);
   if (file == NULL)
     {
@@ -411,6 +415,7 @@ done:
     // TODO: close file only if load failed right?
     file_close (file);
   }
+  release_file_lock ();
   return success;
   
 }
