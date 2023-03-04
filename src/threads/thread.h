@@ -120,9 +120,9 @@ struct thread
 struct child_process {
    tid_t tid;
    int exit_status;
-   // Used for parent to wait on child
+   // Used for parent to wait on child to exit
    struct semaphore exit_sema;
-   // Wait for parent to reap status of child
+   // Used for parent to wait on child to load
    struct semaphore load_sema;
    bool successfully_loaded;
    struct list_elem elem;
