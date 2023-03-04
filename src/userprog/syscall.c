@@ -27,12 +27,12 @@ struct lock file_lock;
 // function to acquire the lock for manipulating files
 // used in process.c
 // Matthew Driving
-void acquire_file_lock () {
+void acquire_filesys_lock () {
   lock_acquire (&file_lock);
 }
 
 // function to release the lock for manipulating files
-void release_file_lock () {
+void release_filesys_lock () {
   lock_release (&file_lock);
 }
 
@@ -226,10 +226,11 @@ static void write(void* esp, struct intr_frame* f, char* buf) {
     struct file* file = thread_current ()->fdt[fd];
     if (!file) {
       f->eax = -1;
-    } 
-    lock_acquire (&file_lock);
-    f->eax = file_write (file, buf, size);
-    lock_release (&file_lock);
+    } else {
+      lock_acquire (&file_lock);
+      f->eax = file_write (file, buf, size);
+      lock_release (&file_lock);
+    }
   }
 }
 
@@ -249,10 +250,11 @@ static void read(void* esp, struct intr_frame* f, char* buf) {
     struct file* file = thread_current ()->fdt[fd];
     if (!file) {
       f->eax = -1;
-    } 
-    lock_acquire (&file_lock);
-    f->eax = file_read (file, buf, size);
-    lock_release (&file_lock);
+    } else {
+      lock_acquire (&file_lock);
+      f->eax = file_read (file, buf, size);
+      lock_release (&file_lock);
+    }
   }
 }
 
@@ -263,10 +265,11 @@ static void filesize(void* esp, struct intr_frame* f) {
   struct file* file = thread_current ()->fdt[fd];
   if (!file) {
     f->eax = -1;
+  } else {
+    lock_acquire (&file_lock);
+    f->eax = file_length (file);
+    lock_release (&file_lock);
   }
-  lock_acquire (&file_lock);
-  f->eax = file_length (file);
-  lock_release (&file_lock);
 }
 
 // Varun Driving

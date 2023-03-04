@@ -51,24 +51,20 @@ tid_t process_execute (const char *cmd_line)
     palloc_free_page (fn_copy);
     return -1;
   }
-  //Varun Driving
+  // Varun Driving
   struct thread *cur = thread_current ();
-  struct list_elem* e;
-  bool successfully_loaded = false;
-  for (e = list_begin (&cur->child_processes); 
-       e != list_end (&cur->child_processes);
-       e = list_next (e)) {
+  struct list_elem* e = list_begin (&cur->child_processes);
+  while (e != list_end (&cur->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     // printf("%d", child->tid);
     if (child->tid == tid) {
       sema_down(&child->load_sema);
-      successfully_loaded = child->successfully_loaded;
+      if (!child->successfully_loaded) {
+        return -1;
+      }
       break;
     }
-  }
-  
-  if (!successfully_loaded) {
-    return -1;
+    e = list_next (e);
   }
   return tid;
 }
@@ -91,19 +87,18 @@ static void start_process (void *file_name_)
   
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  struct thread *cur = thread_current ();
 
-  struct list_elem* e;
-  for (e = list_begin (&cur->parent->child_processes); 
-       e != list_end (&cur->parent->child_processes);
-       e = list_next (e)) {
+  struct thread *cur = thread_current ();
+  struct list_elem* e = list_begin (&cur->parent->child_processes);
+  while (e != list_end (&cur->parent->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     // Matthew Driving
     if (child->tid == cur->tid) {
-      sema_up(&child->load_sema);
       child->successfully_loaded = success;
+      sema_up(&child->load_sema);
       break;
     }
+    e = list_next (e);
   }
 
   if (!success)
@@ -132,23 +127,18 @@ static void start_process (void *file_name_)
    does nothing. */
 // Varun Driving
 int process_wait (tid_t child_tid UNUSED) { 
-
   struct thread *cur = thread_current ();
-  struct list_elem *e;
-  for (e = list_begin (&cur->child_processes); 
-       e != list_end (&cur->child_processes); 
-       e = list_next (e))
-  {
-    // Matthew Driving
+  struct list_elem *e = list_begin (&cur->child_processes);
+  while (e != list_end (&cur->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
     if (child->tid == child_tid) {
       sema_down (&child->exit_sema);
-      int cur_exit_status = child->exit_status;
-      sema_up(&child->wait_reap_sema);
+      int exit_status = child->exit_status;
       list_remove (e);
       free(child);
-      return cur_exit_status;
+      return exit_status;
     }
+    e = list_next (e);
   }
   return -1; 
 }
@@ -163,7 +153,7 @@ void process_exit (int status)
   printf("%s: exit(%d)\n", cur->name, status);
 
   // close all files that are still open
-  for (int i = 2; i < 64; i++) {
+  for (int i = 2; i < 128; i++) {
     if (cur->fdt[i]) {
       file_close (cur->fdt[i]);
       cur->fdt[i] = NULL;
@@ -176,24 +166,21 @@ void process_exit (int status)
   {
     struct list_elem *e = list_pop_front (&cur->child_processes);
     struct child_process* child = list_entry (e, struct child_process, elem);
-    // sema_up (&child->wait_reap_sema);
     child->thread_ptr->parent = NULL;
     free(child);
   }
+
   // Varun Driving
-  struct list_elem *e;
   if (cur->parent) {
-    for (e = list_begin (&cur->parent->child_processes); 
-         e != list_end (&cur->parent->child_processes);
-         e = list_next (e)) {
+    struct list_elem *e = list_begin (&cur->parent->child_processes);
+    while (e != list_end (&cur->parent->child_processes)) {
       struct child_process* child = list_entry (e, struct child_process, elem);
       if (child->tid == cur->tid) {
         child->exit_status = status;
         sema_up (&child->exit_sema);
-        // added so child process won't end before parent can reap exit status
-        sema_down (&child->wait_reap_sema);
         break;
       }
+      e = list_next (e);
     }
   }
 
@@ -333,7 +320,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
     argv[index] = strtok_r(NULL, " ", &strtok_ptr);
   }
   int argc = index;
-  acquire_file_lock ();
+  acquire_filesys_lock ();
   file = filesys_open (argv[0]);
   if (file == NULL)
     {
@@ -422,14 +409,13 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   thread_current ()->exe_file = file;
   file_deny_write(file);
 done:
-  // free(cmd_copy);
+  free(cmd_copy);
   /* We arrive here whether the load is successful or not. */
   if (!success) {
     file_close (file);
   }
-  release_file_lock ();
+  release_filesys_lock ();
   return success;
-  
 }
 
 /* load() helpers. */

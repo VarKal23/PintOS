@@ -105,7 +105,7 @@ struct thread
   struct thread* parent;
   struct list child_processes;
 
-  struct file* fdt[64];
+  struct file* fdt[128];
   struct file* exe_file;
 
 #ifdef USERPROG
@@ -123,7 +123,6 @@ struct child_process {
    // Used for parent to wait on child
    struct semaphore exit_sema;
    // Wait for parent to reap status of child
-   struct semaphore wait_reap_sema;
    struct semaphore load_sema;
    bool successfully_loaded;
    struct list_elem elem;
