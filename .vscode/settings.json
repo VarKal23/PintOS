@@ -20,6 +20,20 @@
         "iterator": "c",
         "string_view": "c",
         "switch.h": "c",
-        "list.h": "c"
+        "list.h": "c",
+        "palloc.h": "c",
+        "pagedir.h": "c",
+        "frame-table.h": "c",
+        "synch.h": "c",
+        "file.h": "c",
+        "cstdlib": "c",
+        "*.tcc": "c",
+        "memory": "c",
+        "*.txx": "c",
+        "new": "c",
+        "stdlib.h": "c",
+        "loader.h": "c",
+        "stdint.h": "c",
+        "thread.h": "c"
     }
 }

@@ -35,6 +35,7 @@ struct pool
 
 /* Two pools: one for kernel data, one for user pages. */
 static struct pool kernel_pool, user_pool;
+static size_t tot_user_pages;
 
 static void init_pool (struct pool *, void *base, size_t page_cnt,
                        const char *name);
@@ -52,12 +53,17 @@ void palloc_init (size_t user_page_limit)
   size_t kernel_pages;
   if (user_pages > user_page_limit)
     user_pages = user_page_limit;
+  tot_user_pages = user_pages;
   kernel_pages = free_pages - user_pages;
 
   /* Give half of memory to kernel, half to user. */
   init_pool (&kernel_pool, free_start, kernel_pages, "kernel pool");
   init_pool (&user_pool, free_start + kernel_pages * PGSIZE, user_pages,
              "user pool");
+}
+
+size_t get_num_user_pages() {
+    return tot_user_pages;
 }
 
 /* Obtains and returns a group of PAGE_CNT contiguous free pages.
