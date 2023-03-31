@@ -3,7 +3,7 @@
 #include "threads/vaddr.h"
 #include "threads/thread.h"
 
-static bool page_addr_comparator (const struct hash_elem *a, 
+bool page_addr_comparator (const struct hash_elem *a, 
             const struct hash_elem *b, void* aux UNUSED)
 {
   const struct page_entry *page_a = hash_entry (a, struct page_entry, hash_elem);
@@ -38,13 +38,17 @@ struct page_entry* insert_page (const void *vaddr, const bool read_only) {
     p->addr = pg_round_down (vaddr);
     if (get_page (vaddr)) return NULL;
     p->read_only = read_only;
-    p->sector = -1;
+    p->swap_sector = -1;
     p->offset = 0;
     p->owner = thread_current ();
     hash_insert(thread_current ()->page_table, &p->hash_elem);
     return p;
 }
 
+unsigned page_table_hash_func (const struct hash_elem *e, void *aux) {
+    const struct page_entry *page = hash_entry (e, struct page_entry, hash_elem);
+    return hash_int((int) page->addr);
+}
 
 
 // TODO: page hash fuction

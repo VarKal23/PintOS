@@ -7,5 +7,5 @@ struct bitmap *swap_bitmap;
 struct lock swap_lock;
 
 void swap_init (void);
-size_t swap_out (void *frame);
-void swap_in (size_t used_index, void* frame);
+block_sector_t swap_out (void *frame);
+void swap_in (block_sector_t sector, void *frame);

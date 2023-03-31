@@ -1,6 +1,6 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
-#include "vm/s-page-table.h"
+#include "vm/s_page_table.h"
 // #include "threads/loader.h"
 // #include "threads/palloc.h"
 

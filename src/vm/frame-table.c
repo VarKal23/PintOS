@@ -42,6 +42,7 @@ uint8_t* get_frame(uint8_t* upage) {
     free_frame->owner = thread_current();
     // Make SPE for upage?
     struct page_entry* new_page = malloc(sizeof(struct page_entry));
+    // upage or vaddr?
     new_page->upage = upage;
     free_frame->page_in_frame = new_page;
 
