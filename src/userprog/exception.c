@@ -156,6 +156,7 @@ static void page_fault (struct intr_frame *f)
 
   kill (f);
 
+// Varun drove here
 //   if (!is_user_vaddr(fault_addr) || is_kernel_vaddr(fault_addr) 
 //       || !not_present) {
 //      thread_exit(-1);

@@ -11,6 +11,7 @@
 static bool my_install_page (void *upage, void *kpage, bool writable);
 
 // comparator function for pages used by hash_init
+// Matt drove here
 bool page_addr_comparator (const struct hash_elem *a, 
             const struct hash_elem *b, void* aux UNUSED)
 {
@@ -22,6 +23,7 @@ bool page_addr_comparator (const struct hash_elem *a,
 }
 
 // hash function for page table used by hash_init
+// Matt drove here
 unsigned page_table_hash_func (const struct hash_elem *e, void *aux) {
     const struct page_entry *page = hash_entry (e, struct page_entry, 
                                                 hash_elem);
@@ -29,6 +31,7 @@ unsigned page_table_hash_func (const struct hash_elem *e, void *aux) {
 }
 
 // returns the page_entry associated with a virtual address
+// Matt drove here
 struct page_entry* get_page (void *vaddr) {
     if (!is_user_vaddr (vaddr)) return NULL;
     struct page_entry tmp;
@@ -40,6 +43,7 @@ struct page_entry* get_page (void *vaddr) {
 }
 
 // allocates a new page for a given virtual address
+// Varun drove here
 struct page_entry* allocate_page (void *vaddr) {
     struct page_entry* p = malloc (sizeof(struct page_entry));
     if (p == NULL) return NULL;
@@ -59,6 +63,7 @@ struct page_entry* allocate_page (void *vaddr) {
 // TODO: page lock and unlock
 
 // function that allocates page to stack & loads it into memory
+// Matt drove here
 bool grow_stack (void *vaddr) {
     int stack_size = (uintptr_t) PHYS_BASE - (uintptr_t) pg_round_down(vaddr);
     if ( stack_size > STACK_MAX) return false;
@@ -79,10 +84,12 @@ bool grow_stack (void *vaddr) {
       free(page);
       return false;
     }
+    lock_release(&page->frame->lock);
     return true;
 }
 
 // function that loads a page into physical memory (if a file or in swap)
+// Matt drove here
 bool load_page(struct page_entry *page) {
     if (page->frame) return true;
     page->frame = allocate_frame();
@@ -99,7 +106,7 @@ bool load_page(struct page_entry *page) {
       free(page);
       return false;
     }
-
+    // Varun driving now
     if (page->file) {
         acquire_filesys_lock();
         size_t read_bytes = file_read_at (page->file, page->frame->kvaddr,
@@ -115,11 +122,13 @@ bool load_page(struct page_entry *page) {
         swap_in (page->swap_sector, page->frame->kvaddr);
         page->swap_sector = -1;
     }
+    lock_release(&page->frame->lock);
     return true;
 }
 
 // function that unloads a page from physical memory and stores in 
 // swap/file system depending on contents. helper method for evict
+// Matt drove here
 bool unload_page(struct page_entry *page) {
     uint32_t* pd = page->owner->pagedir;
     void* addr = page->addr;
@@ -147,6 +156,7 @@ bool unload_page(struct page_entry *page) {
 }
 
 // function for checking if user is trying to allocate memory to stack
+// Varun drove here
 bool is_accessing_stack(void* esp, void *vaddr) {
     int stack_size = (uintptr_t) PHYS_BASE - (uintptr_t) pg_round_down(vaddr);
     // our heuristic is if vaddr is within 32 bytes of esp
@@ -164,6 +174,7 @@ static bool my_install_page (void *upage, void *kpage, bool writable)
           pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
+// Varun drove here
 // deletes a single page of memory, used in hash_destroy
 static void destroy_page (struct hash_elem *e, void *aux UNUSED)
 {

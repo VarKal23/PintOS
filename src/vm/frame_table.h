@@ -7,12 +7,13 @@
 // #include "threads/loader.h"
 // #include "threads/palloc.h"
 
+// Varun drove here
 // our frame struct
 struct frame_entry {
     struct page_entry* page;
     uint8_t* kvaddr; // think of it as physical memory
     struct thread* owner;
-    // TODO: add a lock here
+    struct lock lock;
 };
 
 void init_frame_table();

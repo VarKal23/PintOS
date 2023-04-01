@@ -5,6 +5,7 @@
 #define SECTORS_PER_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
 
 // initializes swap partition and bitmap for checking if they're occupied
+// Varun drove here
 void init_swap() {
     swap_block = block_get_role (BLOCK_SWAP);
     if (!swap_block) PANIC ("Failed to created swap block");
@@ -16,6 +17,7 @@ void init_swap() {
 }
 
 // loads data from swap into specified frame
+// Matt drove here
 bool swap_in (block_sector_t sector, void *frame) {
     lock_acquire(&swap_lock);
     for (int i = 0; i < SECTORS_PER_PAGE; i++) {
@@ -28,6 +30,7 @@ bool swap_in (block_sector_t sector, void *frame) {
 }
 
 // moves data from frame to swap
+// Matt drove here
 bool swap_out (void *frame) {
     lock_acquire(&swap_lock);
     // find available sectors

@@ -187,6 +187,7 @@ void process_exit (int status)
     }
   }
 
+  // Matt drove here
   // destroy_page_table(&cur->page_table);
 
   /* Destroy the current process's page directory and switch back
@@ -313,6 +314,7 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   // create page table
+  // Varun drove here
   t->page_table = malloc (sizeof(*t->page_table));
   if (t->page_table == NULL) {
     goto done;
