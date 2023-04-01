@@ -500,7 +500,7 @@ int priority)
   t->priority = priority;
   t->original_priority = priority;
   t->magic = THREAD_MAGIC;
-
+  t->page_table = NULL;
   t->lock_waiting = NULL;
   t->parent = running_thread();
   list_init (&t->locks_held);

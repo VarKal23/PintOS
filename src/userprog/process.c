@@ -17,7 +17,9 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "vm/frame-table.h"
+#include "vm/frame_table.h"
+#include "vm/page_table.h"
+#include "kernel/hash.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -185,6 +187,8 @@ void process_exit (int status)
     }
   }
 
+  // page_table_destroy(&cur->page_table);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -307,6 +311,13 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
+
+  // create page table
+  t->page_table = malloc (sizeof(*t->page_table));
+  if (t->page_table == NULL) {
+    goto done;
+  }
+  hash_init(t->page_table, page_table_hash_func, page_addr_comparator, NULL);
 
   /* Open executable file. */
   char* argv[128];
@@ -499,11 +510,20 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = get_frame(upage);
+      // struct page_entry* page = allocate_page(upage);
+      // if (!page) return false;
+      // page->file = file;
+      // page->offset = ofs;
+      // page->read_bytes = read_bytes;
+      // page->zero_bytes = zero_bytes;
+      // page->writable = writable;
+      // page->frame = NULL;
+
+      uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
-
-      /* Load this page. */
+      
+      // /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -517,11 +537,11 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false;
         }
-
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += page_read_bytes;
     }
   return true;
 }
@@ -618,6 +638,7 @@ static bool setup_stack (void **esp, char** argv, int argc)
       }
     }
   return success;
+
 }
 
 static bool page_overflow (char* myesp) {

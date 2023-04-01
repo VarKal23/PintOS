@@ -22,7 +22,7 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
-#include "vm/frame-table.h"
+#include "vm/frame_table.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -97,9 +97,6 @@ int main (void)
   malloc_init ();
   paging_init ();
 
-  // Initialize frame table
-  init_frame_table();
-
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();
@@ -127,6 +124,9 @@ int main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+  init_frame_table();
+  init_swap ();
 
   printf ("Boot complete.\n");
 

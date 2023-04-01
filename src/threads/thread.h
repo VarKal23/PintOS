@@ -107,6 +107,7 @@ struct thread
 
   struct file* fdt[128];
   struct file* exe_file;
+  
   struct hash* page_table;
 
 #ifdef USERPROG

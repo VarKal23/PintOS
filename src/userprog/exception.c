@@ -4,6 +4,9 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "vm/frame_table.h"
+#include "vm/page_table.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -152,4 +155,33 @@ static void page_fault (struct intr_frame *f)
   printf ("There is no crying in Pintos!\n");
 
   kill (f);
+
+//   if (!is_user_vaddr(fault_addr) || is_kernel_vaddr(fault_addr) || !not_present) {
+//      thread_exit(-1);
+//      /* To implement virtual memory, delete the rest of the function
+//         body, and replace it with code that brings in the page to
+//         which fault_addr refers. */
+//      printf ("Page fault at %p: %s error %s page in %s context.\n", fault_addr,
+//               not_present ? "not present" : "rights violation",
+//               write ? "writing" : "reading", user ? "user" : "kernel");
+
+//      printf ("There is no crying in Pintos!\n");
+//      kill (f);
+
+//    } else {
+//      bool success;
+//      struct page_entry* page = get_page(fault_addr);
+//      if (page) {
+//         success = load_page(page);
+//      } else if (is_accessing_stack(f->esp, fault_addr)) {
+//         success = grow_stack(fault_addr);
+//      }
+//      if (!success) {
+//            printf ("Page fault at %p: %s error %s page in %s context.\n", fault_addr,
+//               not_present ? "not present" : "rights violation",
+//               write ? "writing" : "reading", user ? "user" : "kernel");
+//         printf ("There is no crying in Pintos!\n");
+//         kill (f);
+//      }
+//    }
 }

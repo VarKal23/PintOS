@@ -34,6 +34,11 @@
         "stdlib.h": "c",
         "loader.h": "c",
         "stdint.h": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "s_page_table.h": "c",
+        "hash.h": "c",
+        "stddef.h": "c",
+        "page_table.h": "c",
+        "stdbool.h": "c"
     }
 }
