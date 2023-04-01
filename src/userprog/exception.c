@@ -156,12 +156,14 @@ static void page_fault (struct intr_frame *f)
 
   kill (f);
 
-//   if (!is_user_vaddr(fault_addr) || is_kernel_vaddr(fault_addr) || !not_present) {
+//   if (!is_user_vaddr(fault_addr) || is_kernel_vaddr(fault_addr) 
+//       || !not_present) {
 //      thread_exit(-1);
 //      /* To implement virtual memory, delete the rest of the function
 //         body, and replace it with code that brings in the page to
 //         which fault_addr refers. */
-//      printf ("Page fault at %p: %s error %s page in %s context.\n", fault_addr,
+//      printf ("Page fault at %p: %s error %s page in %s context.\n", 
+//               fault_addr,
 //               not_present ? "not present" : "rights violation",
 //               write ? "writing" : "reading", user ? "user" : "kernel");
 
@@ -177,7 +179,8 @@ static void page_fault (struct intr_frame *f)
 //         success = grow_stack(fault_addr);
 //      }
 //      if (!success) {
-//            printf ("Page fault at %p: %s error %s page in %s context.\n", fault_addr,
+//            printf ("Page fault at %p: %s error %s page in %s context.\n", 
+//               fault_addr,
 //               not_present ? "not present" : "rights violation",
 //               write ? "writing" : "reading", user ? "user" : "kernel");
 //         printf ("There is no crying in Pintos!\n");

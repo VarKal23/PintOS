@@ -187,7 +187,7 @@ void process_exit (int status)
     }
   }
 
-  // page_table_destroy(&cur->page_table);
+  // destroy_page_table(&cur->page_table);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

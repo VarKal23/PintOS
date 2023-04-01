@@ -25,12 +25,8 @@ struct page_entry {
     block_sector_t swap_sector;
 };
 
-// TODO: why doesn't this work?
 hash_less_func page_addr_comparator;
 hash_hash_func page_table_hash_func;
-
-// bool page_addr_comparator(const struct hash_elem *a, const struct hash_elem *b, void *aux);
-// unsigned page_table_hash_func(const struct hash_elem *e, void *aux);
 
 struct page_entry* get_page (void *vaddr);
 struct page_entry* allocate_page (void *vaddr);
@@ -39,6 +35,6 @@ bool grow_stack (void *vaddr);
 bool load_page(struct page_entry *page);
 bool unload_page(struct page_entry *page);
 bool is_accessing_stack(void* esp, void *vaddr);
-void page_table_destroy (struct hash* page_table);
+void destroy_page_table (struct hash* page_table);
 
 #endif // PAGE_TABLE_H

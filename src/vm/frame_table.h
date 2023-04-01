@@ -10,7 +10,6 @@
 // our frame struct
 struct frame_entry {
     struct page_entry* page;
-    // TODO: should this void*?
     uint8_t* kvaddr; // think of it as physical memory
     struct thread* owner;
     // TODO: add a lock here

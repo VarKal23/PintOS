@@ -35,15 +35,14 @@ void init_frame_table(void) {
 
 // allocates a new frame, returns a frame_entry struct
 struct frame_entry* allocate_frame() {
-    // TODO: this might throw an error
-    // lock_acquire(&frame_lock);
+    lock_acquire(&frame_lock);
     struct frame_entry* free_frame = find_free_frame();
     // no pages available, use eviction policy
     if (free_frame == NULL) {
         // may still return null
         free_frame = evict_page();
     }
-    // lock_release(&frame_lock);
+    lock_release(&frame_lock);
     if (free_frame) {
         free_frame->kvaddr = palloc_get_page(PAL_USER);
     }
@@ -80,9 +79,7 @@ struct frame_entry* evict_page() {
         uint32_t* pd = cur_frame->owner->pagedir;
         void* addr = cur_frame->page->addr;
         int referenced = pagedir_is_accessed(pd, addr);
-        // int dirty = pagedir_is_dirty(pd, addr);
 
-        // not referenced, not dirty - found frame for eviction
         if (!referenced) {
             if (unload_page(cur_frame->page)) {
                 notFound = false;
@@ -91,14 +88,9 @@ struct frame_entry* evict_page() {
                 lock_release(&frame_lock);
                 return cur_frame;
             }
-        // referenced, not dirty
         } else if (referenced) {
             pagedir_set_accessed(pd, addr, false);
         }
-        // referenced, dirty
-        // } else if (dirty) {
-        //     pagedir_set_dirty(pd, addr, false);
-        // }
 
         // update index
         if (index + 1 == num_user_pages) {
