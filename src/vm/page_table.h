@@ -1,7 +1,7 @@
 #ifndef PAGE_TABLE_H
 #define PAGE_TABLE_H
 
-#define STACK_MAX (512 * 1024)
+#define STACK_MAX (8 * 1024 * 1024)
 
 #include "devices/block.h"
 #include "filesys/off_t.h"
@@ -37,5 +37,7 @@ bool load_page(struct page_entry *page);
 bool unload_page(struct page_entry *page);
 bool is_accessing_stack(void* esp, void *vaddr);
 void destroy_page_table (struct hash* page_table);
+bool lock_page(struct page_entry* page);
+void unlock_page(struct page_entry* page);
 
 #endif // PAGE_TABLE_H

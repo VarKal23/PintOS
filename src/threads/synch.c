@@ -205,31 +205,31 @@ void lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  if (lock->holder != NULL) {
-    // Varun driving now
-    struct thread* cur_thread = thread_current ();
-    cur_thread->lock_waiting = lock;
-    struct lock* cur_lock = lock;
+  // if (lock->holder != NULL) {
+  //   // Varun driving now
+  //   struct thread* cur_thread = thread_current ();
+  //   cur_thread->lock_waiting = lock;
+  //   struct lock* cur_lock = lock;
 
-    // Matt and Varun drove here
-    // implementation of nested donation
-    // while loop donates priority up the chain of locks
-    while (cur_lock != NULL && cur_lock->highest_priority < 
-                cur_thread->priority) {
-      cur_lock->highest_priority = cur_thread->priority;
-      update_priority (cur_lock->holder, cur_thread->priority);
-      cur_lock = cur_lock->holder->lock_waiting;
-    }
-  }
+  //   // Matt and Varun drove here
+  //   // implementation of nested donation
+  //   // while loop donates priority up the chain of locks
+  //   while (cur_lock != NULL && cur_lock->highest_priority < 
+  //               cur_thread->priority) {
+  //     cur_lock->highest_priority = cur_thread->priority;
+  //     update_priority (cur_lock->holder, cur_thread->priority);
+  //     cur_lock = cur_lock->holder->lock_waiting;
+  //   }
+  // }
 
   sema_down (&lock->semaphore);
 
   // Varun drove here
   struct thread* cur_thread = thread_current ();
-  cur_thread->lock_waiting = NULL;
+  // cur_thread->lock_waiting = NULL;
   lock->holder = cur_thread;
-  list_insert_ordered (&cur_thread->locks_held, &lock->elem, 
-              &lock_priority_comparator, NULL);
+  // list_insert_ordered (&cur_thread->locks_held, &lock->elem, 
+  //             &lock_priority_comparator, NULL);
 }
 
 // Matt drove here
@@ -275,30 +275,30 @@ void lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   // Varun drove here
-  list_remove (&lock->elem);
+  // list_remove (&lock->elem);
   lock->holder = NULL;
 
-  struct thread* cur_thread = thread_current ();
-  if (!list_empty (&cur_thread->locks_held)) {
-    // Matt and Varun drove here
-    // handling multiple donations
-    // must set priority to the next highest out of all the locks
-    list_sort (&cur_thread->locks_held, &lock_priority_comparator, NULL);
-    int new_donated_pri = list_entry (list_front (&cur_thread->locks_held),
-                struct lock, elem)->highest_priority;
-    update_priority (cur_thread, new_donated_pri);
-  } else {
-    update_priority (cur_thread, cur_thread->original_priority);
-  }
+  // struct thread* cur_thread = thread_current ();
+  // if (!list_empty (&cur_thread->locks_held)) {
+  //   // Matt and Varun drove here
+  //   // handling multiple donations
+  //   // must set priority to the next highest out of all the locks
+  //   list_sort (&cur_thread->locks_held, &lock_priority_comparator, NULL);
+  //   int new_donated_pri = list_entry (list_front (&cur_thread->locks_held),
+  //               struct lock, elem)->highest_priority;
+  //   update_priority (cur_thread, new_donated_pri);
+  // } else {
+  //   update_priority (cur_thread, cur_thread->original_priority);
+  // }
   
-  // Matt drove here
-  // must update lock->highest_priority after a thread releases it
-  if (!list_empty (&lock->semaphore.waiters)) {
-    lock->highest_priority = list_entry (list_front (&lock->semaphore.waiters),
-                                        struct thread, elem)->priority;
-  } else {
-    lock->highest_priority = 0;
-  }
+  // // Matt drove here
+  // // must update lock->highest_priority after a thread releases it
+  // if (!list_empty (&lock->semaphore.waiters)) {
+  //   lock->highest_priority = list_entry (list_front (&lock->semaphore.waiters),
+  //                                       struct thread, elem)->priority;
+  // } else {
+  //   lock->highest_priority = 0;
+  // }
   
   sema_up (&lock->semaphore);
 }

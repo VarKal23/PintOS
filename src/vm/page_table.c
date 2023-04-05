@@ -36,9 +36,9 @@ struct page_entry* get_page (void *vaddr) {
     if (!is_user_vaddr (vaddr)) return NULL;
     struct page_entry tmp;
     tmp.addr = pg_round_down (vaddr);
-    struct hash_elem *elem = hash_find (thread_current ()->page_table, 
+    struct hash_elem *elem = hash_find (&thread_current ()->page_table, 
                                         &tmp.hash_elem);
-    if (elem == NULL) return NULL;
+    if (!elem) return NULL;
     return hash_entry (elem, struct page_entry, hash_elem);
 }
 
@@ -46,17 +46,18 @@ struct page_entry* get_page (void *vaddr) {
 // Varun drove here
 struct page_entry* allocate_page (void *vaddr) {
     struct page_entry* p = malloc (sizeof(struct page_entry));
-    if (p == NULL) return NULL;
+    if (!p) return NULL;
     p->addr = pg_round_down (vaddr);
     if (get_page (vaddr)) return NULL;
-    p->writable = false;
-    p->swap_sector = -1;
+    p->frame = NULL;
+    p->file = NULL;
     p->offset = 0;
     p->read_bytes = 0;
     p->zero_bytes= 0;
-    block_sector_t swap_sector;
+    p->writable = false;
+    p->swap_sector = -1;
     p->owner = thread_current ();
-    hash_insert(thread_current ()->page_table, &p->hash_elem);
+    hash_insert(&thread_current ()->page_table, &p->hash_elem);
     return p;
 }
 
@@ -65,13 +66,14 @@ struct page_entry* allocate_page (void *vaddr) {
 // function that allocates page to stack & loads it into memory
 // Matt drove here
 bool grow_stack (void *vaddr) {
+    // printf("entered grow_stack\n");
     int stack_size = (uintptr_t) PHYS_BASE - (uintptr_t) pg_round_down(vaddr);
     if ( stack_size > STACK_MAX) return false;
     struct page_entry* page = allocate_page(vaddr);
     if (!page) return false;
     page->writable = true;
-    page->frame = allocate_frame();
-    if (!page->frame) 
+    page->frame = allocate_frame(page);
+    if (!page->frame)
     {
         free(page);
         return false;
@@ -91,13 +93,14 @@ bool grow_stack (void *vaddr) {
 // function that loads a page into physical memory (if a file or in swap)
 // Matt drove here
 bool load_page(struct page_entry *page) {
-    if (page->frame) return true;
-    page->frame = allocate_frame();
-    if (!page->frame) 
+    // the frame's lock will be acquired in allocate_frame
+    page->frame = allocate_frame(page);
+    if (!page->frame)
     {
         free(page);
         return false;
     }
+    // adds page to the real page table
     bool success = my_install_page(page->addr, page->frame->kvaddr, 
                                     page->writable);
     if (!success)
@@ -107,49 +110,49 @@ bool load_page(struct page_entry *page) {
       return false;
     }
     // Varun driving now
-    if (page->file) {
+    if (page->read_bytes == 0) {
+        memset (page->frame->kvaddr, 0, page->zero_bytes);
+    } else if (page->file) {
         acquire_filesys_lock();
         size_t read_bytes = file_read_at (page->file, page->frame->kvaddr,
                                         page->read_bytes, page->offset);
         memset (page->frame->kvaddr + read_bytes, 0, page->zero_bytes);
+        release_filesys_lock();
         if (read_bytes != page->read_bytes) {
-            release_filesys_lock();
             free_frame(page->frame);
             free(page);
             return false;
         }
     } else if (page->swap_sector != -1) {
-        swap_in (page->swap_sector, page->frame->kvaddr);
-        page->swap_sector = -1;
+        swap_in (page);
     }
     lock_release(&page->frame->lock);
+    // printf("page successfully allocated\n");
     return true;
 }
 
 // function that unloads a page from physical memory and stores in 
-// swap/file system depending on contents. helper method for evict
+// swap/file system. helper method for evict
 // Matt drove here
 bool unload_page(struct page_entry *page) {
     uint32_t* pd = page->owner->pagedir;
     void* addr = page->addr;
     pagedir_clear_page(pd, addr);
     int dirty = pagedir_is_dirty(pd, addr);
-    bool success = true;
     if (!page->file) {
-        if (swap_out(page->frame->kvaddr)) {
-            page->frame = NULL;
-            return true;
+        if (!swap_out(page)) {
+            return false;
         }
-        return false;
     }
     // page has a file
-    if (dirty) {
-        if(file_write_at(page->file, page->frame->kvaddr, 
-                        page->read_bytes, page->offset)) {
-            page->frame = NULL;
-            return true;
+    else if (dirty) {
+        size_t bytes_written = file_write_at(page->file, page->frame->kvaddr, 
+                    page->read_bytes, page->offset);
+        if (bytes_written != page->read_bytes) {
+            // TODO: the problem is here
+            ASSERT(false);
+            // return false;
         }
-        return false;
     }
     page->frame = NULL;
     return true;
@@ -160,7 +163,7 @@ bool unload_page(struct page_entry *page) {
 bool is_accessing_stack(void* esp, void *vaddr) {
     int stack_size = (uintptr_t) PHYS_BASE - (uintptr_t) pg_round_down(vaddr);
     // our heuristic is if vaddr is within 32 bytes of esp
-    return stack_size < STACK_MAX && (uintptr_t) esp - 32 < vaddr;
+    return stack_size < STACK_MAX && (uintptr_t) esp - 32 <= vaddr;
 }
 
 // our version of install_page that adds an additional check
@@ -186,13 +189,33 @@ static void destroy_page (struct hash_elem *e, void *aux UNUSED)
       uint32_t* pd = page->owner->pagedir;
       void* addr = page->addr;
       pagedir_clear_page(pd, addr);
+      free(page->frame);
+      page->frame = NULL;
     }
   free(page);
-  page = NULL;
 }
 
 // destroys entire page table. used in process_exit
 void destroy_page_table (struct hash* page_table)
 {
-  hash_destroy (page_table, destroy_page);
+    hash_destroy (page_table, destroy_page);
 }
+
+// used in syscall
+bool lock_page(struct page_entry* page) {
+    if (page->frame) {
+        if (!lock_held_by_current_thread(&page->frame->lock)) {
+            lock_acquire(&page->frame->lock);
+        }
+        return true;
+    } else {
+        return load_page(page);
+    }
+}
+
+void unlock_page(struct page_entry* page) {
+    if (lock_held_by_current_thread(&page->frame->lock)) {
+        lock_release(&page->frame->lock);
+    }
+}
+

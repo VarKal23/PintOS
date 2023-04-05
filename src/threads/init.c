@@ -126,7 +126,7 @@ int main (void)
 #endif
 
   init_frame_table();
-  init_swap ();
+  init_swap();
 
   printf ("Boot complete.\n");
 

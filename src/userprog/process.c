@@ -162,9 +162,10 @@ void process_exit (int status)
       cur->fdt[i] = NULL;
     }
   }
-  // Matthew Driving
+
   file_close (cur->exe_file);
 
+  // Matt Driving
   while (!list_empty (&cur->child_processes))
   {
     struct list_elem *e = list_pop_front (&cur->child_processes);
@@ -315,11 +316,11 @@ bool load (const char *file_name, void (**eip) (void), void **esp)
 
   // create page table
   // Varun drove here
-  t->page_table = malloc (sizeof(*t->page_table));
-  if (t->page_table == NULL) {
-    goto done;
-  }
-  hash_init(t->page_table, page_table_hash_func, page_addr_comparator, NULL);
+  // t->page_table = malloc (sizeof(*t->page_table));
+  // if (t->page_table == NULL) {
+  //   goto done;
+  // }
+  hash_init(&t->page_table, page_table_hash_func, page_addr_comparator, NULL);
 
   /* Open executable file. */
   char* argv[128];
@@ -512,33 +513,15 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      // struct page_entry* page = allocate_page(upage);
-      // if (!page) return false;
-      // page->file = file;
-      // page->offset = ofs;
-      // page->read_bytes = read_bytes;
-      // page->zero_bytes = zero_bytes;
-      // page->writable = writable;
-      // page->frame = NULL;
+      struct page_entry* page = allocate_page(upage);
+      if (!page) return false;
+      page->file = file;
+      page->offset = ofs;
+      page->read_bytes = page_read_bytes;
+      page->zero_bytes = page_zero_bytes;
+      page->writable = writable;
+      page->frame = NULL;
 
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
-      
-      // /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false;
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable))
-        {
-          palloc_free_page (kpage);
-          return false;
-        }
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -553,94 +536,58 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 // Matthew Driving
 static bool setup_stack (void **esp, char** argv, int argc)
 {
-  uint8_t *kpage;
-  bool success = false;
-
   if (argc > 128) {
     // should we call exit?
     return false;
   }
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL)
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success) {
-        *esp = PHYS_BASE;
-        // push args themselves
-        char* myesp = (char*) *esp;
-        char* addr_cpys[argc];
-        for (int i = argc - 1; i >= 0; i--) {
-          myesp = myesp - (strlen (argv[i]) + 1);
-          if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-          memcpy( myesp, argv[i], strlen (argv[i]) + 1);
-          addr_cpys[i] = myesp;
-        }
-        // Varun Driving
-        // add padding for alignment
-        while((int) myesp % 4 != 0) {
-          myesp = myesp - sizeof (uint8_t);
-          if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-          uint8_t padding = 0;
-          memcpy (myesp, &padding, sizeof (uint8_t));
-        }
-        // push null pointer sentinel
-        myesp = myesp - sizeof (char*);
-        if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-        char* sentinel = 0;
-        // Matthew Driving
-        memcpy (myesp, &sentinel, sizeof (char*));
-        // push pointers to args
-        for (int i = argc-1; i >= 0; i--) {
-          myesp = myesp - sizeof (char*);
-          if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-          memcpy (myesp, &addr_cpys[i], sizeof (char*));
-        }
-        // push pointer to argv
-        char** argv_p = myesp;
-        myesp = myesp - sizeof (char**);
-        if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-        // Varun Driving
-        memcpy (myesp, &argv_p, sizeof (char**));
-        // push argc
-        myesp = myesp - sizeof (int);
-        if (page_overflow (myesp)) {
-            palloc_free_page (kpage);
-            return false;
-          }
-        memcpy (myesp, &argc, sizeof (int));
-        // push return address
-        myesp = myesp - sizeof (void*);
-        if (page_overflow (myesp)) {
-          palloc_free_page (kpage);
-          return false;
-        }
-        void* ret_addr = 0;
-        memcpy (myesp, &ret_addr, sizeof (void*));
-        // update original stack pointer
-        *esp = (void*) myesp;
-        // hex_dump (*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
-      } else {
-        palloc_free_page (kpage);
-      }
-    }
-  return success;
+  bool success = grow_stack(((uint8_t *) PHYS_BASE) - PGSIZE);
 
+  if (success) {
+    *esp = PHYS_BASE;
+    // push args themselves
+    char* myesp = (char*) *esp;
+    char* addr_cpys[argc];
+    for (int i = argc - 1; i >= 0; i--) {
+      myesp = myesp - (strlen (argv[i]) + 1);
+      memcpy( myesp, argv[i], strlen (argv[i]) + 1);
+      addr_cpys[i] = myesp;
+    }
+    // Varun Driving
+    // add padding for alignment
+    while((int) myesp % 4 != 0) {
+      myesp = myesp - sizeof (uint8_t);
+      uint8_t padding = 0;
+      memcpy (myesp, &padding, sizeof (uint8_t));
+    }
+    // push null pointer sentinel
+    myesp = myesp - sizeof (char*);
+    char* sentinel = 0;
+    // Matthew Driving
+    memcpy (myesp, &sentinel, sizeof (char*));
+    // push pointers to args
+    for (int i = argc-1; i >= 0; i--) {
+      myesp = myesp - sizeof (char*);
+      memcpy (myesp, &addr_cpys[i], sizeof (char*));
+    }
+    // push pointer to argv
+    char** argv_p = myesp;
+    myesp = myesp - sizeof (char**);
+    // Varun Driving
+    memcpy (myesp, &argv_p, sizeof (char**));
+    // push argc
+    myesp = myesp - sizeof (int);
+    memcpy (myesp, &argc, sizeof (int));
+    // push return address
+    myesp = myesp - sizeof (void*);
+    void* ret_addr = 0;
+    memcpy (myesp, &ret_addr, sizeof (void*));
+    // update original stack pointer
+    *esp = (void*) myesp;
+    // hex_dump (*esp, *esp, (char*)PHYS_BASE - (char*)(*esp), true);
+  }
+
+  return success;
 }
 
 static bool page_overflow (char* myesp) {

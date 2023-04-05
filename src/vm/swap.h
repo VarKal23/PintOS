@@ -13,7 +13,7 @@ struct bitmap *swap_bitmap;
 struct lock swap_lock;
 
 void init_swap (void);
-bool swap_in (block_sector_t sector, void *frame);
-bool swap_out (void *frame);
+bool swap_in (struct page_entry* page);
+bool swap_out (struct page_entry* page);
 
 #endif // SWAP_H

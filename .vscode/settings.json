@@ -39,6 +39,7 @@
         "hash.h": "c",
         "stddef.h": "c",
         "page_table.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "random": "c"
     }
 }

@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <hash.h>
 #include "synch.h"
 
 /* States in a thread's life cycle. */
@@ -108,7 +109,9 @@ struct thread
   struct file* fdt[128];
   struct file* exe_file;
   
-  struct hash* page_table;
+//   TODO: should this be a pointer
+  struct hash page_table;
+  void* esp;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */

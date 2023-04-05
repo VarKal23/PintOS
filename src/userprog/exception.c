@@ -144,48 +144,24 @@ static void page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  thread_exit(-1);
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n", fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading", user ? "user" : "kernel");
+   bool success = false;
+   if (user && not_present)
+    {
+      struct page_entry* page = get_page(fault_addr);
+      if (page) {
+            success = load_page(page);
+      } else if (is_accessing_stack(thread_current ()->esp, fault_addr)) {
+            success = grow_stack(fault_addr);
+      }
+    }
 
-  printf ("There is no crying in Pintos!\n");
-
-  kill (f);
-
-// Varun drove here
-//   if (!is_user_vaddr(fault_addr) || is_kernel_vaddr(fault_addr) 
-//       || !not_present) {
-//      thread_exit(-1);
-//      /* To implement virtual memory, delete the rest of the function
-//         body, and replace it with code that brings in the page to
-//         which fault_addr refers. */
-//      printf ("Page fault at %p: %s error %s page in %s context.\n", 
-//               fault_addr,
-//               not_present ? "not present" : "rights violation",
-//               write ? "writing" : "reading", user ? "user" : "kernel");
-
-//      printf ("There is no crying in Pintos!\n");
-//      kill (f);
-
-//    } else {
-//      bool success;
-//      struct page_entry* page = get_page(fault_addr);
-//      if (page) {
-//         success = load_page(page);
-//      } else if (is_accessing_stack(f->esp, fault_addr)) {
-//         success = grow_stack(fault_addr);
-//      }
-//      if (!success) {
-//            printf ("Page fault at %p: %s error %s page in %s context.\n", 
-//               fault_addr,
-//               not_present ? "not present" : "rights violation",
-//               write ? "writing" : "reading", user ? "user" : "kernel");
-//         printf ("There is no crying in Pintos!\n");
-//         kill (f);
-//      }
-//    }
+    if (!success) {
+         thread_exit(-1);
+         printf ("Page fault at %p: %s error %s page in %s context.\n", 
+            fault_addr,
+            not_present ? "not present" : "rights violation",
+            write ? "writing" : "reading", user ? "user" : "kernel");
+         printf ("There is no crying in Pintos!\n");
+         kill (f);
+    }
 }
