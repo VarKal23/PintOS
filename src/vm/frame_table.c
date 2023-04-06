@@ -59,7 +59,8 @@ struct frame_entry* allocate_frame(struct page_entry* page) {
 struct frame_entry* find_free_frame() {
     for (int i = 0; i < num_frames; i++) {
         struct frame_entry* cur_frame = &frame_table[i];
-        if (lock_held_by_current_thread (&cur_frame->lock) || !lock_try_acquire (&cur_frame->lock)) {
+        if (lock_held_by_current_thread (&cur_frame->lock) 
+            || !lock_try_acquire (&cur_frame->lock)) {
             continue;
         }
         if (cur_frame->page == NULL) {
@@ -78,7 +79,8 @@ struct frame_entry* evict_page() {
 
     while(num_trips < 2) {
         struct frame_entry* cur_frame = &frame_table[index];
-        if (lock_held_by_current_thread (&cur_frame->lock) || !lock_try_acquire (&cur_frame->lock)) {
+        if (lock_held_by_current_thread (&cur_frame->lock) 
+            || !lock_try_acquire (&cur_frame->lock)) {
             continue;
         }
         uint32_t* pd = cur_frame->owner->pagedir;

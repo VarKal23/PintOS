@@ -40,6 +40,8 @@
         "stddef.h": "c",
         "page_table.h": "c",
         "stdbool.h": "c",
-        "random": "c"
+        "random": "c",
+        "bitset": "c",
+        "typeindex": "c"
     }
 }

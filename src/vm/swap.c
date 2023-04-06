@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+// number of swap sectors required to store a page of memory
 #define SECTORS_PER_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
 
 // initializes swap partition and bitmap for checking if they're occupied
