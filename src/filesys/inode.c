@@ -14,10 +14,12 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
 {
-  block_sector_t start; /* First data sector. */
+  // block_sector_t start; /* First data sector. */
   off_t length;         /* File size in bytes. */
   unsigned magic;       /* Magic number. */
-  uint32_t unused[125]; /* Not used. */
+  block_sector_t direct_map[124];
+  block_sector_t indirect_block;
+  block_sector_t doubly_indirect_block;
 };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -36,6 +38,10 @@ struct inode
   bool removed;           /* True if deleted, false otherwise. */
   int deny_write_cnt;     /* 0: writes ok, >0: deny writes. */
   struct inode_disk data; /* Inode content. */
+
+  // block_sector_t direct_map[124];
+  // block_sector_t indirect_block;
+  // block_sector_t doubly_indirect_block;
 };
 
 /* Returns the block device sector that contains byte offset POS
@@ -45,8 +51,20 @@ struct inode
 static block_sector_t byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
+  int block_index = pos / BLOCK_SECTOR_SIZE;
+
+  // Direct mapped block access
+  if (block_index < 124) {
+    return inode->data.direct_map[block_index];
+
+  // indirect block access
+  } else if () {
+    
+  }
+
+  // doubly indirect block access
+  // if (pos < inode->data.length)
+  //   return inode->data.start + pos / BLOCK_SECTOR_SIZE;
   else
     return -1;
 }
