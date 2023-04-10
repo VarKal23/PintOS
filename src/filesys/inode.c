@@ -10,6 +10,11 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
+#define DIRECT_BLOCKS 124
+#define INDIRECT_BLOCKS 1
+#define DOUBLE_INDIRECT_BLOCKS 1
+#define MAX_ENTRIES_PER_BLOCK 128
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
@@ -52,20 +57,29 @@ static block_sector_t byte_to_sector (const struct inode *inode, off_t pos)
 {
   ASSERT (inode != NULL);
   int block_index = pos / BLOCK_SECTOR_SIZE;
+  int max_indirect_index = DIRECT_BLOCKS + INDIRECT_BLOCKS*MAX_ENTRIES_PER_BLOCK;
+  int max_double_indirect_index = max_indirect_index + DOUBLE_INDIRECT_BLOCKS*MAX_ENTRIES_PER_BLOCK*MAX_ENTRIES_PER_BLOCK;
+
+  block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
 
   // Direct mapped block access
-  if (block_index < 124) {
+  if (block_index < DIRECT_BLOCKS) {
     return inode->data.direct_map[block_index];
 
   // indirect block access
-  } else if () {
-    
-  }
+  } else if (block_index < max_indirect_index) {
+    block_index -= DIRECT_BLOCKS;
+    block_read(fs_device, inode->data.indirect_block, &indirect_buffer);
+    return indirect_buffer[block_index];
+  } else if (block_index < max_double_indirect_index) {
+    int indirect_block_index = (block_index - max_indirect_index) / MAX_ENTRIES_PER_BLOCK;
+    block_read(fs_device, inode->data.doubly_indirect_block, &indirect_buffer);
+    block_sector_t indirect_block = indirect_buffer[indirect_block_index];
 
-  // doubly indirect block access
-  // if (pos < inode->data.length)
-  //   return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
+    int direct_block_index = (block_index - max_indirect_index) % MAX_ENTRIES_PER_BLOCK;
+    block_read(fs_device, indirect_block, &indirect_buffer);
+    return indirect_buffer[direct_block_index];
+  } else
     return -1;
 }
 
