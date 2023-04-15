@@ -262,7 +262,7 @@ block_sector_t inode_get_inumber (const struct inode *inode)
    If this was the last reference to INODE, frees its memory.
    If INODE was also a removed inode, frees its blocks. */
 void inode_close (struct inode *inode)
-{
+  {
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
@@ -270,20 +270,64 @@ void inode_close (struct inode *inode)
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0) {
     if (inode->removed) {
-      
+      /* Remove from inode list and release lock. */
+      list_remove (&inode->elem);
+
+      /* Deallocate blocks if removed. */
+      free_map_release (inode->sector, 1);
+      size_t sectors = bytes_to_sectors(inode->length);
+      size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
+      size_t indirect_sectors;
+      size_t double_indirect_sectors;
+      if (sectors <= DIRECT_BLOCKS) {
+        direct_sectors = sectors;
+        indirect_sectors = 0;
+        double_indirect_sectors = 0;
+      } else if (sectors <= MAX_INDIRECT_INDEX) {
+        direct_sectors = DIRECT_BLOCKS;
+        indirect_sectors = sectors - DIRECT_BLOCKS;
+        double_indirect_sectors = 0;
+      } else {
+        direct_sectors = DIRECT_BLOCKS;
+        indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
+        double_indirect_sectors = sectors - MAX_INDIRECT_INDEX;
+      }
+      for (size_t i = 0; i < direct_sectors; i++) {
+        free_map_release(inode->direct_map[i], 1);
+      }
+      if (indirect_sectors > 0) {
+        block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_read(fs_device, inode->indirect_block, &indirect_buffer);
+        for (size_t i = 0; i < indirect_sectors; i++) {
+          free_map_release(indirect_buffer[i], 1);
+        }
+        free_map_release(inode->indirect_block, 1);
+      }
+      if (double_indirect_sectors > 0) {
+        block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_read(fs_device, inode->doubly_indirect_block, &double_indirect_buffer);
+        for (size_t i = 0; i < MAX_ENTRIES_PER_BLOCK; i++) {
+          if (double_indirect_buffer[i] == 0) {
+            break;
+          }
+          block_read(fs_device, double_indirect_buffer[i], &indirect_buffer);
+          for (size_t j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
+            if (indirect_buffer[j] == 0) {
+              break;
+            }
+            free_map_release(indirect_buffer[j], 1);
+          }
+          free_map_release(double_indirect_buffer[i], 1);
+        }
+        free_map_release(inode->doubly_indirect_block, 1);
+      }
+
+      free (inode);
+    } else {
+      block_write(fs_device, inode->sector, &inode->data);
+      free(inode);
     }
-      // /* Remove from inode list and release lock. */
-      // list_remove (&inode->elem);
-
-      // /* Deallocate blocks if removed. */
-      // if (inode->removed)
-      //   {
-      //     free_map_release (inode->sector, 1);
-      //     free_map_release (inode->data.start,
-      //                       bytes_to_sectors (inode->data.length));
-      //   }
-
-      // free (inode);
   }
 }
 
