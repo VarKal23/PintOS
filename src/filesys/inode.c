@@ -262,72 +262,72 @@
 //    If INODE was also a removed inode, frees its blocks. */
 // void inode_close (struct inode *inode)
 //   {
-//   /* Ignore null pointer. */
-//   if (inode == NULL)
-//     return;
+  // /* Ignore null pointer. */
+  // if (inode == NULL)
+  //   return;
 
-//   /* Release resources if this was the last opener. */
-//   if (--inode->open_cnt == 0) {
-//     if (inode->removed) {
-//       /* Remove from inode list and release lock. */
-//       list_remove (&inode->elem);
+  // /* Release resources if this was the last opener. */
+  // if (--inode->open_cnt == 0) {
+  //   if (inode->removed) {
+  //     /* Remove from inode list and release lock. */
+  //     list_remove (&inode->elem);
 
-//       /* Deallocate blocks if removed. */
-//       free_map_release (inode->sector, 1);
-//       size_t sectors = bytes_to_sectors(inode->length);
-//       size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
-//       size_t indirect_sectors;
-//       size_t double_indirect_sectors;
-//       if (sectors <= DIRECT_BLOCKS) {
-//         direct_sectors = sectors;
-//         indirect_sectors = 0;
-//         double_indirect_sectors = 0;
-//       } else if (sectors <= MAX_INDIRECT_INDEX) {
-//         direct_sectors = DIRECT_BLOCKS;
-//         indirect_sectors = sectors - DIRECT_BLOCKS;
-//         double_indirect_sectors = 0;
-//       } else {
-//         direct_sectors = DIRECT_BLOCKS;
-//         indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
-//         double_indirect_sectors = sectors - MAX_INDIRECT_INDEX;
-//       }
-//       for (size_t i = 0; i < direct_sectors; i++) {
-//         free_map_release(inode->direct_map[i], 1);
-//       }
-//       if (indirect_sectors > 0) {
-//         block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
-//         block_read(ffs_device, s_device, inode->indirect_block, &indirect_buffer);
-//         for (size_t i = 0; i < indirect_sectors; i++) {
-//           free_map_release(indirect_buffer[i], 1);
-//         }
-//         free_map_release(inode->indirect_block, 1);
-//       }
-//       if (double_indirect_sectors > 0) {
-//         block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
-//         block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];
-//         block_read(ffs_device, s_device, inode->doubly_indirect_block, &double_indirect_buffer);
-//         for (size_t i = 0; i < MAX_ENTRIES_PER_BLOCK; i++) {
-//           if (double_indirect_buffer[i] == 0) {
-//             break;
-//           }
-//           block_read(ffs_device, s_device, double_indirect_buffer[i], &indirect_buffer);
-//           for (size_t j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
-//             if (indirect_buffer[j] == 0) {
-//               break;
-//             }
-//             free_map_release(indirect_buffer[j], 1);
-//           }
-//           free_map_release(double_indirect_buffer[i], 1);
-//         }
-//         free_map_release(inode->doubly_indirect_block, 1);
-//       }
+  //     /* Deallocate blocks if removed. */
+  //     free_map_release (inode->sector, 1);
+  //     size_t sectors = bytes_to_sectors(inode->length);
+  //     size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
+  //     size_t indirect_sectors;
+  //     size_t double_indirect_sectors;
+  //     if (sectors <= DIRECT_BLOCKS) {
+  //       direct_sectors = sectors;
+  //       indirect_sectors = 0;
+  //       double_indirect_sectors = 0;
+  //     } else if (sectors <= MAX_INDIRECT_INDEX) {
+  //       direct_sectors = DIRECT_BLOCKS;
+  //       indirect_sectors = sectors - DIRECT_BLOCKS;
+  //       double_indirect_sectors = 0;
+  //     } else {
+  //       direct_sectors = DIRECT_BLOCKS;
+  //       indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
+  //       double_indirect_sectors = sectors - MAX_INDIRECT_INDEX;
+  //     }
+  //     for (size_t i = 0; i < direct_sectors; i++) {
+  //       free_map_release(inode->direct_map[i], 1);
+  //     }
+  //     if (indirect_sectors > 0) {
+  //       block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+  //       block_read(ffs_device, s_device, inode->indirect_block, &indirect_buffer);
+  //       for (size_t i = 0; i < indirect_sectors; i++) {
+  //         free_map_release(indirect_buffer[i], 1);
+  //       }
+  //       free_map_release(inode->indirect_block, 1);
+  //     }
+  //     if (double_indirect_sectors > 0) {
+  //       block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+  //       block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+  //       block_read(ffs_device, s_device, inode->doubly_indirect_block, &double_indirect_buffer);
+  //       for (size_t i = 0; i < MAX_ENTRIES_PER_BLOCK; i++) {
+  //         if (double_indirect_buffer[i] == 0) {
+  //           break;
+  //         }
+  //         block_read(ffs_device, s_device, double_indirect_buffer[i], &indirect_buffer);
+  //         for (size_t j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
+  //           if (indirect_buffer[j] == 0) {
+  //             break;
+  //           }
+  //           free_map_release(indirect_buffer[j], 1);
+  //         }
+  //         free_map_release(double_indirect_buffer[i], 1);
+  //       }
+  //       free_map_release(inode->doubly_indirect_block, 1);
+  //     }
 
-//       free (inode);
-//     } else {
-//       block_write(ffs_device, s_device, inode->sector, &inode->data);
-//       free(inode);
-//     }
-//   }
+  //     free (inode);
+  //   } else {
+  //     block_write(ffs_device, s_device, inode->sector, &inode->data);
+  //     free(inode);
+  //   }
+  // }
 // }
 
 // /* Marks INODE to be deleted when it is closed by the last caller who
@@ -797,25 +797,71 @@ inode_get_inumber (const struct inode *inode)
 void
 inode_close (struct inode *inode)
 {
-  /* Ignore null pointer. */
   if (inode == NULL)
     return;
 
   /* Release resources if this was the last opener. */
-  if (--inode->open_cnt == 0)
-    {
-      /* Remove from inode list and release lock. */
-      list_remove (&inode->elem);
-
+  if (--inode->open_cnt == 0) {
+    /* Remove from inode list and release lock. */
+    list_remove (&inode->elem);
+    if (inode->removed) {
       /* Deallocate blocks if removed. */
-      if (inode->removed)
-        {
-          free_map_release (inode->sector, 1);
-          inode_deallocate (inode);
+      free_map_release (inode->sector, 1);
+      size_t sectors = bytes_to_sectors(inode->data.length);
+      size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
+      size_t indirect_sectors;
+      size_t double_indirect_sectors;
+      if (sectors <= DIRECT_BLOCKS) {
+        direct_sectors = sectors;
+        indirect_sectors = 0;
+        double_indirect_sectors = 0;
+      } else if (sectors <= MAX_INDIRECT_INDEX) {
+        direct_sectors = DIRECT_BLOCKS;
+        indirect_sectors = sectors - DIRECT_BLOCKS;
+        double_indirect_sectors = 0;
+      } else {
+        direct_sectors = DIRECT_BLOCKS;
+        indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
+        double_indirect_sectors = sectors - MAX_INDIRECT_INDEX;
+      }
+
+      for (size_t i = 0; i < direct_sectors; i++) {
+        free_map_release(inode->data.direct_map[i], 1);
+      }
+      if (indirect_sectors > 0) {
+        block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_read(fs_device, inode->data.indirect_block, &indirect_buffer);
+        for (size_t i = 0; i < indirect_sectors; i++) {
+          free_map_release(indirect_buffer[i], 1);
         }
+        free_map_release(inode->data.indirect_block, 1);
+      }
+      if (double_indirect_sectors > 0) {
+        block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];
+        block_read(fs_device, inode->data.doubly_indirect_block, &double_indirect_buffer);
+        for (size_t i = 0; i < MAX_ENTRIES_PER_BLOCK; i++) {
+          if (double_indirect_buffer[i] == 0) {
+            break;
+          }
+          block_read(fs_device, double_indirect_buffer[i], &indirect_buffer);
+          for (size_t j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
+            if (indirect_buffer[j] == 0) {
+              break;
+            }
+            free_map_release(indirect_buffer[j], 1);
+          }
+          free_map_release(double_indirect_buffer[i], 1);
+        }
+        free_map_release(inode->data.doubly_indirect_block, 1);
+      }
 
       free (inode);
+    } else {
+      // block_write(fs_device, inode->sector, &inode->data);
+      free(inode);
     }
+  }
 }
 
 /* Marks INODE to be deleted when it is closed by the last caller who
@@ -1073,66 +1119,4 @@ inode_reserve (struct inode_disk *disk_inode, off_t length)
 
   ASSERT (num_sectors == 0);
   return false;
-}
-
-static void
-inode_deallocate_indirect (block_sector_t entry, size_t num_sectors, int level)
-{
-  // only supports 2-level indirect block scheme as of now
-  ASSERT (level <= 2);
-
-  if (level == 0) {
-    free_map_release (entry, 1);
-    return;
-  }
-
-  struct inode_indirect_block_sector indirect_block;
-  block_read(fs_device, entry, &indirect_block);
-
-  size_t unit = (level == 1 ? 1 : MAX_ENTRIES_PER_BLOCK);
-  size_t i, l = DIV_ROUND_UP (num_sectors, unit);
-
-  for (i = 0; i < l; ++ i) {
-    size_t subsize = min(num_sectors, unit);
-    inode_deallocate_indirect (indirect_block.blocks[i], subsize, level - 1);
-    num_sectors -= subsize;
-  }
-
-  ASSERT (num_sectors == 0);
-  free_map_release (entry, 1);
-}
-
-static
-bool inode_deallocate (struct inode *inode)
-{
-  off_t file_length = inode->data.length; // bytes
-  if(file_length < 0) return false;
-
-  // (remaining) number of sectors, occupied by this file.
-  size_t num_sectors = bytes_to_sectors(file_length);
-  size_t i, l;
-
-  // (1) direct blocks
-  l = min(num_sectors, DIRECT_BLOCKS * 1);
-  for (i = 0; i < l; ++ i) {
-    free_map_release (inode->data.direct_map[i], 1);
-  }
-  num_sectors -= l;
-
-  // (2) a single indirect block
-  l = min(num_sectors, 1 * MAX_ENTRIES_PER_BLOCK);
-  if(l > 0) {
-    inode_deallocate_indirect (inode->data.indirect_block, l, 1);
-    num_sectors -= l;
-  }
-
-  // (3) a single doubly indirect block
-  l = min(num_sectors, 1 * MAX_ENTRIES_PER_BLOCK * MAX_ENTRIES_PER_BLOCK);
-  if(l > 0) {
-    inode_deallocate_indirect (inode->data.doubly_indirect_block, l, 2);
-    num_sectors -= l;
-  }
-
-  ASSERT (num_sectors == 0);
-  return true;
 }
