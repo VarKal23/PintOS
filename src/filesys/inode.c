@@ -128,7 +128,6 @@ bool inode_create(block_sector_t sector, off_t length)
           direct_sectors = sectors;
           indirect_sectors = 0;
           double_indirect_sectors = 0;
-          indirect_sectors = sectors - DIRECT_BLOCKS;
         } else if (sectors <= MAX_INDIRECT_INDEX) {
           direct_sectors = DIRECT_BLOCKS;
           indirect_sectors = sectors - DIRECT_BLOCKS;
