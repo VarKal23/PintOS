@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/thread.h"
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -33,16 +34,56 @@ void filesys_init (bool format)
    to disk. */
 void filesys_done (void) { free_map_close (); }
 
+static struct dir *get_parent_directory (const char *path, char *file_name)
+{
+  struct dir *dir;
+  char *token, *next_token, *save_ptr;
+
+  // Check if the path is absolute or relative
+  if (path[0] == '/')
+    dir = dir_open_root ();
+  else {
+    struct thread* cur = thread_current();
+    dir = dir_reopen (cur->cwd);
+  }
+
+  token = strtok_r ((char *) path, "/", &save_ptr);
+
+  while (token != NULL)
+  {
+    next_token = strtok_r (NULL, "/", &save_ptr);
+    if (next_token == NULL)
+      break;
+
+    struct inode *inode;
+    if (!dir_lookup (dir, token, &inode))
+    {
+      dir_close (dir);
+      return NULL;
+    }
+
+    dir_close (dir);
+    dir = dir_open (inode);
+    token = next_token;
+  }
+
+  strlcpy (file_name, token, NAME_MAX + 1);
+  return dir;
+}
+
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
-bool filesys_create (const char *name, off_t initial_size)
+bool filesys_create (const char *name, off_t initial_size, bool is_dir)
 {
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
+  char file_name[NAME_MAX + 1];
+  // struct dir *dir = dir_open_root ();
+  struct dir *dir = get_parent_directory (name, file_name);
+
   bool success = (dir != NULL && free_map_allocate (1, &inode_sector) &&
-                  inode_create (inode_sector, initial_size) &&
+                  inode_create (inode_sector, initial_size, is_dir) &&
                   dir_add (dir, name, inode_sector));
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);

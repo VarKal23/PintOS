@@ -11,7 +11,7 @@
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
-#define DIRECT_BLOCKS 124
+#define DIRECT_BLOCKS 123
 #define INDIRECT_BLOCKS 1
 #define DOUBLE_INDIRECT_BLOCKS 1
 #define MAX_ENTRIES_PER_BLOCK 128
@@ -27,6 +27,7 @@ struct inode_disk
     block_sector_t direct_map[DIRECT_BLOCKS];
     block_sector_t indirect_block;
     block_sector_t doubly_indirect_block;
+    bool is_dir;
   };
 
 struct inode_indirect_block_sector {
@@ -126,7 +127,7 @@ inode_init (void)
    device.
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
-bool inode_create(block_sector_t sector, off_t length)
+bool inode_create(block_sector_t sector, off_t length, bool is_dir)
 {
     struct inode_disk *disk_inode = NULL;
 
@@ -140,6 +141,7 @@ bool inode_create(block_sector_t sector, off_t length)
         if (!inode_grow(disk_inode, length)) {
           return false;
         }
+        disk_inode->is_dir = is_dir;
         block_write(fs_device, sector, disk_inode);
         free(disk_inode);
         return true;

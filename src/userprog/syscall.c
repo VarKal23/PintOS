@@ -180,7 +180,7 @@ static void wait(void* esp, struct intr_frame* f) {
 static void create(void* esp, struct intr_frame* f, char* file_name) {
   unsigned int initial_size = *(unsigned int*) ((char*) esp + 4);
   lock_acquire (&file_lock);
-  f->eax = filesys_create (file_name, initial_size);
+  f->eax = filesys_create (file_name, initial_size, false);
   lock_release (&file_lock);
 }
 
