@@ -338,8 +338,8 @@ void inode_close (struct inode *inode)
       }
       free(inode);
     } else {
-      // TODO: why do we need this?
-      block_write(fs_device, inode->sector, &inode->data);
+      // TODO: do we need this?
+      // block_write(fs_device, inode->sector, &inode->data);
       free(inode);
     }
   }
