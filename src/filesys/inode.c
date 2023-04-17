@@ -61,7 +61,12 @@ struct inode
    POS. */
 static block_sector_t byte_to_sector (const struct inode *inode, off_t pos)
 {
+  
   ASSERT (inode != NULL);
+  if ( pos < 0 || pos >= inode->data.length) {
+   return -1;
+  }
+
   int block_index = pos / BLOCK_SECTOR_SIZE;
 
   block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
