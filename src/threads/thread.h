@@ -108,7 +108,7 @@ struct thread
   struct file* fdt[128];
   struct file* exe_file;
 
-  struct dir *cwd;
+//   struct dir *cwd;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */

@@ -143,6 +143,21 @@ bool dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   if (lookup (dir, name, NULL, NULL))
     goto done;
 
+  // TODO: where do we write the current dir?
+  struct inode* inode = inode_open(inode_sector);
+  if (!inode) return false;
+  if (inode->data.is_dir) {
+    struct dir* dir = dir_open(inode);
+    struct inode* parent_inode = dir_get_inode(dir);
+    e.inode_sector = inode_get_inumber(parent_inode);
+    // TODO: what is the file name of e?
+    if (inode_write_at(inode, &e, sizeof e, 0) != sizeof e) {
+      dir_close(dir);
+      return false;
+    }
+    dir_close(dir);
+  }
+
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
      current end-of-file.
@@ -186,6 +201,20 @@ bool dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+
+  // make sure that dir is empty
+  if (inode->data.is_dir) {
+    struct dir_entry e;
+    off_t pos = sizeof e;
+    while (inode_read_at (dir->inode, &e, sizeof e, pos) == sizeof e)
+    {
+      if (e.in_use)
+      {
+        return false;
+      }
+      pos += sizeof e;
+    }
+  }
 
   /* Erase directory entry. */
   e.in_use = false;

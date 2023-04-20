@@ -34,21 +34,28 @@ void filesys_init (bool format)
    to disk. */
 void filesys_done (void) { free_map_close (); }
 
+
 static struct dir *get_parent_directory (const char *path, char *file_name)
 {
   struct dir *dir;
   char *token, *next_token, *save_ptr;
+  printf("%s", path);
 
   // Check if the path is absolute or relative
-  if (path[0] == '/')
+  if (path[0] == '/') {
     dir = dir_open_root ();
-  else {
-    struct thread* cur = thread_current();
-    dir = dir_reopen (cur->cwd);
+  } else {
+    ASSERT(false);
+    return NULL;
   }
+  // else {
+  //   // TODO: what does dir_reopen do?
+  //   dir = dir_reopen (thread_current ()->cwd);
+  // }
 
   token = strtok_r ((char *) path, "/", &save_ptr);
 
+  // TODO: i don't like having token and next token
   while (token != NULL)
   {
     next_token = strtok_r (NULL, "/", &save_ptr);
@@ -79,12 +86,13 @@ bool filesys_create (const char *name, off_t initial_size, bool is_dir)
 {
   block_sector_t inode_sector = 0;
   char file_name[NAME_MAX + 1];
-  // struct dir *dir = dir_open_root ();
   struct dir *dir = get_parent_directory (name, file_name);
 
+  // TODO: are we calling free_map_allocate twice?
   bool success = (dir != NULL && free_map_allocate (1, &inode_sector) &&
+                  // TODO: do we need to modify any of the inode methods?
                   inode_create (inode_sector, initial_size, is_dir) &&
-                  dir_add (dir, name, inode_sector));
+                  dir_add (dir, file_name, inode_sector));
   if (!success && inode_sector != 0)
     free_map_release (inode_sector, 1);
   dir_close (dir);
@@ -99,12 +107,21 @@ bool filesys_create (const char *name, off_t initial_size, bool is_dir)
    or if an internal memory allocation fails. */
 struct file *filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  // TODO: check if length is 0?
   struct inode *inode = NULL;
+  char file_name[NAME_MAX + 1];
+  struct dir* dir = get_parent_directory(name, file_name);
 
-  if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
+  if (dir != NULL) {
+    // if we're trying to open a file
+    if (strlen(file_name) > 0) {
+      dir_lookup (dir, file_name, &inode);
+      dir_close (dir);
+      // if we're trying to open a dir
+    } else {
+      inode = dir_get_inode (dir);
+    }
+  }
 
   return file_open (inode);
 }
@@ -115,8 +132,10 @@ struct file *filesys_open (const char *name)
    or if an internal memory allocation fails. */
 bool filesys_remove (const char *name)
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
+  char file_name[NAME_MAX + 1];
+  struct dir* dir = get_parent_directory(name, file_name);
+
+  bool success = dir != NULL && dir_remove (dir, file_name);
   dir_close (dir);
 
   return success;
