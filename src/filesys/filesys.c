@@ -39,14 +39,18 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
 {
   struct dir *dir;
   char *token, *next_token, *save_ptr;
-  printf("%s", path);
+  // printf("%s", path);
+
+  if (strlen(path) == 0) {
+    return NULL;
+  }
 
   // Check if the path is absolute or relative
   if (path[0] == '/') {
     dir = dir_open_root ();
   } else {
-    ASSERT(false);
-    return NULL;
+    dir = dir_open_root ();
+    // return NULL;
   }
   // else {
   //   // TODO: what does dir_reopen do?
@@ -74,6 +78,10 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
     token = next_token;
   }
 
+  if (strlen(token) == 0 || strlen(token) > NAME_MAX + 1) {
+    return NULL;
+  }
+
   strlcpy (file_name, token, NAME_MAX + 1);
   return dir;
 }
@@ -86,7 +94,24 @@ bool filesys_create (const char *name, off_t initial_size, bool is_dir)
 {
   block_sector_t inode_sector = 0;
   char file_name[NAME_MAX + 1];
+  // struct dir dir* = dir_open_root ();
   struct dir *dir = get_parent_directory (name, file_name);
+
+  // bool success = true;
+  // if (dir == NULL) {
+  //   success = false;
+  // }
+  // if (!free_map_allocate (1, &inode_sector)) {
+  //   success = false;
+  // }
+
+  // if (!inode_create (inode_sector, initial_size, is_dir)) {
+  //   success = false;
+  // }
+
+  // if (!dir_add (dir, file_name, inode_sector)) {
+  //   success = false;
+  // }
 
   // TODO: are we calling free_map_allocate twice?
   bool success = (dir != NULL && free_map_allocate (1, &inode_sector) &&
@@ -121,6 +146,8 @@ struct file *filesys_open (const char *name)
     } else {
       inode = dir_get_inode (dir);
     }
+  } else {
+    return NULL;
   }
 
   return file_open (inode);

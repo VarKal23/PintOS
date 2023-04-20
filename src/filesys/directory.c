@@ -146,6 +146,7 @@ bool dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   // TODO: where do we write the current dir?
   struct inode* inode = inode_open(inode_sector);
   if (!inode) return false;
+
   if (inode->data.is_dir) {
     struct dir* dir = dir_open(inode);
     struct inode* parent_inode = dir_get_inode(dir);
