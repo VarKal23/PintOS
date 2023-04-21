@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt();
@@ -22,6 +23,11 @@ static void filesize(void* esp, struct intr_frame* f);
 static void seek(void* esp);
 static void tell(void* esp, struct intr_frame* f);
 static void close(void* esp);
+static void chdir(void* esp, struct intr_frame* f);
+static void readdir(void* esp, struct intr_frame* f);
+static void isdir(void* esp, struct intr_frame* f);
+static void inumber(void* esp, struct intr_frame* f);
+
 struct lock file_lock;
 
 // function to acquire the lock for manipulating files
@@ -154,6 +160,14 @@ static void syscall_handler (struct intr_frame *f UNUSED)
       return;
     }
     f->eax = filesys_create(dir_name, 0, true);
+  } else if (syscall_number == SYS_READDIR) {
+    readdir(esp, f);
+
+  } else if (syscall_number == SYS_ISDIR) {
+    isdir(esp, f);
+
+  } else if (syscall_number == SYS_INUMBER) {
+    inumber(esp, f);
   }
 }
 
@@ -315,5 +329,60 @@ static void close(void* esp) {
     file_close(file);
     thread_current ()->fdt[fd] = NULL;
     lock_release (&file_lock);
+  }
+}
+
+static void chdir(void* esp, struct intr_frame* f) {
+  char* dir_name = *(char**) esp;
+  // lock_acquire(&file_lock);
+  if (filesys_chdir(dir_name)) {
+     f->eax = true;
+  } else {
+    f->eax = -1;
+  }
+  // lock_release(&file_lock);
+}
+
+static void readdir(void* esp, struct intr_frame* f) {
+  int fd = *(int*) esp;
+  char* name = *(char**)((char*) esp + 4);
+  struct file* file = thread_current()->fdt[fd];
+  if (file) {
+    struct inode* inode = file_get_inode(file);
+    if (inode && inode->data.is_dir) {
+      struct dir* dir = dir_open(inode_reopen(inode));
+      f->eax = dir_readdir(dir, name);
+      dir_close(dir);
+    } else {
+      f->eax = false;
+    }
+  } else {
+    f->eax = false;
+  }
+}
+
+static void isdir(void* esp, struct intr_frame* f) {
+  int fd = *(int*) esp;
+  struct file* file = thread_current()->fdt[fd];
+  if (file) {
+    struct inode* inode = file_get_inode(file);
+    f->eax = inode && inode->data.is_dir;
+  } else {
+    f->eax = false;
+  }
+}
+
+static void inumber(void* esp, struct intr_frame* f) {
+  int fd = *(int*) esp;
+  struct file* file = thread_current()->fdt[fd];
+  if (file) {
+    struct inode* inode = file_get_inode(file);
+    if (inode) {
+      f->eax = inode_get_inumber(inode);
+    } else {
+      f->eax = -1;
+    }
+  } else {
+    f->eax = -1;
   }
 }

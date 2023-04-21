@@ -34,7 +34,6 @@ void filesys_init (bool format)
    to disk. */
 void filesys_done (void) { free_map_close (); }
 
-
 static struct dir *get_parent_directory (const char *path, char *file_name)
 {
   struct dir *dir;
@@ -45,18 +44,18 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
     return NULL;
   }
 
-  // Check if the path is absolute or relative
   if (path[0] == '/') {
     dir = dir_open_root ();
     path++;
   } else {
-    dir = dir_open_root ();
-    // return NULL;
+    if (!thread_current ()->cwd) {
+      dir = dir_open_root ();
+    }
+    else {
+      // dir = dir_open_root ();
+      dir = dir_reopen (thread_current ()->cwd);
+    }
   }
-  // else {
-  //   // TODO: what does dir_reopen do?
-  //   dir = dir_reopen (thread_current ()->cwd);
-  // }
 
   char *path_cpy = malloc( (strlen(path) + 1));
   memcpy (path_cpy, path, (strlen(path) + 1));
@@ -87,6 +86,23 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
 
   strlcpy (file_name, token, NAME_MAX + 1);
   return dir;
+}
+
+// TODO: move to syscall.c?
+bool filesys_chdir (const char *name)
+{
+
+  char file_name[NAME_MAX + 1];
+  struct dir *dir = get_parent_directory(name, file_name);
+
+  if (!dir) {
+    return false;
+  }
+
+  struct thread* cur_thread = thread_current();
+  dir_close (cur_thread->cwd);
+  cur_thread->cwd = dir;
+  return true;
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.

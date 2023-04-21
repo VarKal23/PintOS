@@ -88,6 +88,11 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
+  if (!thread_current()->cwd)
+  {
+    thread_current()->cwd = dir_open_root();
+  }
+
   struct thread *cur = thread_current ();
   struct list_elem* e = list_begin (&cur->parent->child_processes);
   while (e != list_end (&cur->parent->child_processes)) {
