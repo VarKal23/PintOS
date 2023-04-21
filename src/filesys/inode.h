@@ -23,7 +23,8 @@ struct bitmap;
 struct inode_disk
   {
     off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
+    unsigned magic;    
+    // Varun Driving                 /* Magic number. */
     block_sector_t direct_map[DIRECT_BLOCKS];
     block_sector_t indirect_block;
     block_sector_t doubly_indirect_block;

@@ -8,10 +8,6 @@
 #include "threads/malloc.h"
 #include <stdbool.h>
 
-struct inode_indirect_block_sector {
-  block_sector_t blocks[MAX_ENTRIES_PER_BLOCK];
-};
-
 static bool inode_allocate (struct inode_disk *disk_inode);
 static bool inode_reserve (struct inode_disk *disk_inode, off_t length);
 static bool inode_deallocate (struct inode *inode);
