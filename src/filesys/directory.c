@@ -157,15 +157,14 @@ bool dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   if (lookup (dir, name, NULL, NULL))
     goto done;
 
-  // TODO: where do we write the current dir?
   struct inode* inode = inode_open(inode_sector);
   if (!inode) return false;
 
   if (inode->data.is_dir) {
     struct dir* dir = dir_open(inode);
     struct inode* parent_inode = dir_get_inode(dir);
+    strlcpy (e.name, "..", sizeof e.name);
     e.inode_sector = inode_get_inumber(parent_inode);
-    // TODO: what is the file name of e?
     if (inode_write_at(inode, &e, sizeof e, 0) != sizeof e) {
       dir_close(dir);
       return false;

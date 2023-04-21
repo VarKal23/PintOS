@@ -133,6 +133,7 @@ static bool inode_grow(struct inode_disk* disk_inode, off_t length) {
     indirect_sectors = sectors - DIRECT_BLOCKS;
     double_indirect_sectors = 0;
   } else {
+    // comment
     direct_sectors = DIRECT_BLOCKS;
     indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
     double_indirect_sectors = sectors - MAX_INDIRECT_INDEX;

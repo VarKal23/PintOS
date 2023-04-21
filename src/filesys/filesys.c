@@ -69,7 +69,11 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
       break;
 
     struct inode *inode;
-    if (!dir_lookup (dir, token, &inode))
+    // dir will not change
+    if (strcmp(token, ".") == 0) {
+      token = next_token;
+      continue;
+    } else if (!dir_lookup (dir, token, &inode))
     {
       dir_close (dir);
       return NULL;
