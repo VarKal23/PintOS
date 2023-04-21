@@ -273,8 +273,9 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-
+  lock_init(&inode->lock);
   block_read (fs_device, inode->sector, &inode->data);
+  inode->safe_length = inode->data.length;
   return inode;
 }
 
@@ -398,7 +399,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
-      off_t inode_left = inode_length (inode) - offset;
+      off_t inode_left = inode->safe_length - offset;
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
       int min_left = inode_left < sector_left ? inode_left : sector_left;
 
@@ -454,9 +455,11 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   // Matthew Driving
   if(inode->data.length < offset + size) {
+    lock_acquire(&inode->lock);
     if (!inode_grow(&inode->data, offset + size)) {
       return 0;
     }
+    lock_release(&inode->lock);
     block_write (fs_device, inode->sector, &inode->data);
   }
 
@@ -509,6 +512,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     }
   free (bounce);
 
+  inode->safe_length = inode->data.length;
   return bytes_written;
 }
 

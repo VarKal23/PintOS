@@ -5,6 +5,7 @@
 #include <list.h>
 #include "filesys/off_t.h"
 #include "devices/block.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -39,7 +40,9 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
+    struct inode_disk data;            /* Inode content. */
+    struct lock lock;
+    off_t safe_length;
   };
 
 
