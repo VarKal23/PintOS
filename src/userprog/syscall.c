@@ -147,6 +147,13 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_CLOSE) {
     close(esp);
+  } else if (syscall_number == SYS_MKDIR) {
+    char* dir_name = *(char**) esp;
+    if (!valid_pointer (dir_name)) {
+      thread_exit (-1);
+      return;
+    }
+    f->eax = filesys_create(dir_name, 0, true);
   }
 }
 

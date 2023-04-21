@@ -25,7 +25,13 @@ struct dir_entry
    given SECTOR.  Returns true if successful, false on failure. */
 bool dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
+  if (!inode_create (sector, entry_cnt * sizeof (struct dir_entry), true)) {
+    return false;
+  }
+  struct dir_entry e;
+  e.inode_sector = sector;
+  struct inode* inode = inode_open(sector);
+  return inode_write_at(inode, &e, sizeof e, 0) == sizeof e;
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -36,7 +42,8 @@ struct dir *dir_open (struct inode *inode)
   if (inode != NULL && dir != NULL)
     {
       dir->inode = inode;
-      dir->pos = 0;
+      // TODO: what about the current dir?
+      dir->pos = sizeof(struct dir_entry);
       return dir;
     }
   else
@@ -112,10 +119,17 @@ bool dir_lookup (const struct dir *dir, const char *name, struct inode **inode)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  if (lookup (dir, name, &e, NULL))
+  // TODO: change
+  if (strcmp (".", name) == 0) {
+    *inode = inode_reopen (dir->inode);
+  } else if (strcmp ("..", name) == 0) {
+    inode_read_at (dir->inode, &e, sizeof e, 0);
     *inode = inode_open (e.inode_sector);
-  else
+  } else if (lookup (dir, name, &e, NULL))
+    *inode = inode_open (e.inode_sector);
+  else {
     *inode = NULL;
+  }
 
   return *inode != NULL;
 }

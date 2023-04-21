@@ -21,6 +21,8 @@
         "string_view": "c",
         "switch.h": "c",
         "list.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "typeindex": "c",
+        "typeinfo": "c"
     }
 }

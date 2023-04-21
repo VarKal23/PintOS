@@ -48,6 +48,7 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
   // Check if the path is absolute or relative
   if (path[0] == '/') {
     dir = dir_open_root ();
+    path++;
   } else {
     dir = dir_open_root ();
     // return NULL;
@@ -57,9 +58,11 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
   //   dir = dir_reopen (thread_current ()->cwd);
   // }
 
-  token = strtok_r ((char *) path, "/", &save_ptr);
+  char *path_cpy = malloc( (strlen(path) + 1));
+  memcpy (path_cpy, path, (strlen(path) + 1));
 
-  // TODO: i don't like having token and next token
+  token = strtok_r (path_cpy, "/", &save_ptr);
+
   while (token != NULL)
   {
     next_token = strtok_r (NULL, "/", &save_ptr);
@@ -159,6 +162,10 @@ struct file *filesys_open (const char *name)
    or if an internal memory allocation fails. */
 bool filesys_remove (const char *name)
 {
+  // edge case, should not be able to remove root
+  if (strcmp("/", name) == 0) {
+    return false;
+  }
   char file_name[NAME_MAX + 1];
   struct dir* dir = get_parent_directory(name, file_name);
 
