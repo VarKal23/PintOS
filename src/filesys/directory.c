@@ -119,17 +119,15 @@ bool dir_lookup (const struct dir *dir, const char *name, struct inode **inode)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  // TODO: change
-  if (strcmp (".", name) == 0) {
-    *inode = inode_reopen (dir->inode);
-  } else if (strcmp ("..", name) == 0) {
-    inode_read_at (dir->inode, &e, sizeof e, 0);
-    *inode = inode_open (e.inode_sector);
-  } else if (lookup (dir, name, &e, NULL))
+  // lock_acquire(dir->inode);
+  
+  if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else {
     *inode = NULL;
   }
+
+  // lock_release(dir->inode);
 
   return *inode != NULL;
 }
@@ -148,6 +146,8 @@ bool dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
+  // lock_acquire(dir->inode);
 
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
@@ -191,6 +191,7 @@ bool dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
 done:
+  // lock_release(dir->inode);
   return success;
 }
 
@@ -207,6 +208,8 @@ bool dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  // lock_acquire(dir->inode);
+
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
     goto done;
@@ -215,6 +218,11 @@ bool dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+
+  // make sure that no other processes have this dir opened
+  if (inode->open_cnt > 1) {
+    goto done;
+  }
 
   // make sure that dir is empty
   if (inode->data.is_dir) {
@@ -241,6 +249,7 @@ bool dir_remove (struct dir *dir, const char *name)
 
 done:
   inode_close (inode);
+  // lock_release(dir->inode);
   return success;
 }
 
@@ -250,6 +259,7 @@ done:
 bool dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
+  // lock_acquire(dir->inode);
 
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e)
     {
@@ -257,8 +267,10 @@ bool dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
+          // lock_release(dir->inode);
           return true;
         }
     }
+  // lock_release(dir->inode);
   return false;
 }

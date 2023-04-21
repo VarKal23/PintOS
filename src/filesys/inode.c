@@ -8,9 +8,6 @@
 #include "threads/malloc.h"
 #include <stdbool.h>
 
-static bool inode_allocate (struct inode_disk *disk_inode);
-static bool inode_reserve (struct inode_disk *disk_inode, off_t length);
-static bool inode_deallocate (struct inode *inode);
 static bool allocate_direct_blocks(struct inode_disk* inode, 
                                   block_sector_t direct_sectors);
 static bool allocate_indirect_blocks(struct inode_disk* inode, 
@@ -25,12 +22,6 @@ static inline size_t
 bytes_to_sectors (off_t size)
 {
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
-}
-
-static inline size_t
-min (size_t a, size_t b)
-{
-  return a < b ? a : b;
 }
 
 /* Returns the block device sector that contains byte offset POS
