@@ -15,9 +15,12 @@ struct inode_indirect_block_sector {
 static bool inode_allocate (struct inode_disk *disk_inode);
 static bool inode_reserve (struct inode_disk *disk_inode, off_t length);
 static bool inode_deallocate (struct inode *inode);
-static bool allocate_direct_blocks(struct inode_disk* inode, block_sector_t direct_sectors);
-static bool allocate_indirect_blocks(struct inode_disk* inode, block_sector_t indirect_sectors);
-static bool allocate_double_indirect_blocks(struct inode_disk* inode, block_sector_t double_indirect_sectors);
+static bool allocate_direct_blocks(struct inode_disk* inode, 
+                                  block_sector_t direct_sectors);
+static bool allocate_indirect_blocks(struct inode_disk* inode, 
+                                  block_sector_t indirect_sectors);
+static bool allocate_double_indirect_blocks(struct inode_disk* inode, 
+                                  block_sector_t double_indirect_sectors);
 static bool inode_grow(struct inode_disk* disk_inode, off_t length);
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -41,6 +44,7 @@ min (size_t a, size_t b)
 static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos)
 {
+  // Matthew Driving
   ASSERT (inode != NULL);
   if (0 <= pos && pos < inode->data.length) {
     off_t block_index = pos / BLOCK_SECTOR_SIZE;
@@ -58,14 +62,18 @@ byte_to_sector (const struct inode *inode, off_t pos)
       block_sector_t found_block = indirect_buffer[block_index];
       return indirect_buffer[block_index];
 
+    // Varun Driving
     } else if (block_index < MAX_DOUBLE_INDIRECT_INDEX) {
-      int indirect_block_index = (block_index - MAX_INDIRECT_INDEX) / MAX_ENTRIES_PER_BLOCK;
+      int indirect_block_index = (block_index - MAX_INDIRECT_INDEX) / 
+                                  MAX_ENTRIES_PER_BLOCK;
 
       // Reads first level doubly indirect block
-      block_read(fs_device, inode->data.doubly_indirect_block, &indirect_buffer);
+      block_read(fs_device, inode->data.doubly_indirect_block, 
+                &indirect_buffer);
       block_sector_t indirect_block = indirect_buffer[indirect_block_index];
 
-      int direct_block_index = (block_index - MAX_INDIRECT_INDEX) % MAX_ENTRIES_PER_BLOCK;
+      int direct_block_index = (block_index - MAX_INDIRECT_INDEX) % 
+                                MAX_ENTRIES_PER_BLOCK;
 
       // Reads the 2nd level indirect block containing our desired block
       block_read(fs_device, indirect_block, &indirect_buffer);
@@ -94,6 +102,7 @@ inode_init (void)
    device.
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
+// Varun Driving
 bool inode_create(block_sector_t sector, off_t length, bool is_dir)
 {
     struct inode_disk *disk_inode = NULL;
@@ -116,12 +125,15 @@ bool inode_create(block_sector_t sector, off_t length, bool is_dir)
     return false;
 }
 
+// Matthew Driving
+/* Allocates inodes on disk_inode and grows past EOF if needed. */
 static bool inode_grow(struct inode_disk* disk_inode, off_t length) {
   block_sector_t sectors = bytes_to_sectors(length);
   disk_inode->length = length;
   disk_inode->magic = INODE_MAGIC;
 
-  block_sector_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
+  block_sector_t direct_sectors = sectors > DIRECT_BLOCKS ? 
+                                  DIRECT_BLOCKS : sectors;
   block_sector_t indirect_sectors;
   block_sector_t double_indirect_sectors;
   if (sectors <= DIRECT_BLOCKS) {
@@ -132,6 +144,7 @@ static bool inode_grow(struct inode_disk* disk_inode, off_t length) {
     direct_sectors = DIRECT_BLOCKS;
     indirect_sectors = sectors - DIRECT_BLOCKS;
     double_indirect_sectors = 0;
+  // Varun Driving
   } else {
     // comment
     direct_sectors = DIRECT_BLOCKS;
@@ -148,7 +161,9 @@ static bool inode_grow(struct inode_disk* disk_inode, off_t length) {
   return false;
 }
 
-static bool allocate_direct_blocks(struct inode_disk *disk_inode, block_sector_t direct_sectors) {
+/*Allocate direct_sectors onto direct map blocks onto disk_inode*/
+static bool allocate_direct_blocks(struct inode_disk *disk_inode, 
+                                  block_sector_t direct_sectors) {
     for (int i = 0; i < direct_sectors; i++) {
       if (disk_inode->direct_map[i] == 0) {
         if (!free_map_allocate(1, &disk_inode->direct_map[i])) {
@@ -159,7 +174,9 @@ static bool allocate_direct_blocks(struct inode_disk *disk_inode, block_sector_t
     return true;
 }
 
-static bool allocate_indirect_blocks(struct inode_disk* disk_inode, block_sector_t indirect_sectors) {
+/*Allocate indirect_sectors onto indirect block onto disk_inode*/
+static bool allocate_indirect_blocks(struct inode_disk* disk_inode, 
+                                    block_sector_t indirect_sectors) {
     if (indirect_sectors == 0) {
       return true;
     }
@@ -169,7 +186,7 @@ static bool allocate_indirect_blocks(struct inode_disk* disk_inode, block_sector
         return false;
       }
     }
-
+    // Matthew Driving
     block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
     // memset(&indirect_buffer, 0, sizeof(indirect_buffer));
     block_read(fs_device, disk_inode->indirect_block, &indirect_buffer);
@@ -186,7 +203,10 @@ static bool allocate_indirect_blocks(struct inode_disk* disk_inode, block_sector
     return true;
 }
 
-static bool allocate_double_indirect_blocks(struct inode_disk *disk_inode, block_sector_t double_indirect_sectors) {
+// Varun Driving
+/*Allocate double_indirect_sectors onto disk_inode*/
+static bool allocate_double_indirect_blocks(struct inode_disk *disk_inode, 
+                                      block_sector_t double_indirect_sectors) {
     if (double_indirect_sectors == 0) {
       return true;
     }
@@ -200,9 +220,9 @@ static bool allocate_double_indirect_blocks(struct inode_disk *disk_inode, block
     block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];  
     block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
 
-    // memset(&double_indirect_buffer, 0, sizeof(double_indirect_buffer));
-    block_read(fs_device, disk_inode->doubly_indirect_block, &double_indirect_buffer);
-
+    block_read(fs_device, disk_inode->doubly_indirect_block, 
+              &double_indirect_buffer);
+    // Matthew Driving
     for (int i = 0; i < double_indirect_sectors; i++) {
       if (double_indirect_buffer[i] == 0) { 
         if (!free_map_allocate(1, &double_indirect_buffer[i])) {
@@ -210,7 +230,7 @@ static bool allocate_double_indirect_blocks(struct inode_disk *disk_inode, block
         }
       }
       block_read(fs_device, double_indirect_buffer[i], &indirect_buffer);
-      // TODO: if on last block, only allocate the remaining sectors
+
       for (int j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
         if (indirect_buffer[j] == 0) { 
           if (!free_map_allocate(1, &indirect_buffer[j])) {
@@ -220,7 +240,8 @@ static bool allocate_double_indirect_blocks(struct inode_disk *disk_inode, block
       }
       block_write(fs_device, double_indirect_buffer[i], &indirect_buffer);
     }
-    block_write(fs_device, disk_inode->doubly_indirect_block, &double_indirect_buffer);
+    block_write(fs_device, disk_inode->doubly_indirect_block, 
+                &double_indirect_buffer);
     return true;
 }
 
@@ -293,8 +314,11 @@ inode_close (struct inode *inode)
     if (inode->removed) {
       /* Deallocate blocks if removed. */
       free_map_release (inode->sector, 1);
+
+      // Matthew Driving
       size_t sectors = bytes_to_sectors(inode->data.length);
-      size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : sectors;
+      size_t direct_sectors = sectors > DIRECT_BLOCKS ? DIRECT_BLOCKS : 
+                              sectors;
       size_t indirect_sectors;
       size_t double_indirect_sectors;
       if (sectors <= DIRECT_BLOCKS) {
@@ -305,6 +329,7 @@ inode_close (struct inode *inode)
         direct_sectors = DIRECT_BLOCKS;
         indirect_sectors = sectors - DIRECT_BLOCKS;
         double_indirect_sectors = 0;
+      // Varun Driving
       } else {
         direct_sectors = DIRECT_BLOCKS;
         indirect_sectors = MAX_INDIRECT_INDEX - DIRECT_BLOCKS;
@@ -325,11 +350,13 @@ inode_close (struct inode *inode)
       if (double_indirect_sectors > 0) {
         block_sector_t indirect_buffer[MAX_ENTRIES_PER_BLOCK];
         block_sector_t double_indirect_buffer[MAX_ENTRIES_PER_BLOCK];
-        block_read(fs_device, inode->data.doubly_indirect_block, &double_indirect_buffer);
+        block_read(fs_device, inode->data.doubly_indirect_block, 
+                  &double_indirect_buffer);
         for (size_t i = 0; i < MAX_ENTRIES_PER_BLOCK; i++) {
           if (double_indirect_buffer[i] == 0) {
             break;
           }
+          // Matthew Driving
           block_read(fs_device, double_indirect_buffer[i], &indirect_buffer);
           for (size_t j = 0; j < MAX_ENTRIES_PER_BLOCK; j++) {
             if (indirect_buffer[j] == 0) {
@@ -344,7 +371,6 @@ inode_close (struct inode *inode)
 
       free (inode);
     } else {
-      // block_write(fs_device, inode->sector, &inode->data);
       free(inode);
     }
   }
@@ -430,6 +456,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
+  // Matthew Driving
   if(inode->data.length < offset + size) {
     if (!inode_grow(&inode->data, offset + size)) {
       return 0;

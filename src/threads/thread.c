@@ -103,6 +103,7 @@ void thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  // Varun Driving
   initial_thread->cwd = NULL;
 }
 
@@ -210,6 +211,7 @@ tid_t thread_create (const char *name, int priority, thread_func *function,
   child->thread_ptr = t;
   list_insert (list_end (&thread_current()->child_processes), &child->elem);
 
+  // Varun Driving
   struct thread *cur = thread_current();
   if (cur->cwd) {
     t->cwd = dir_reopen(cur->cwd);

@@ -56,7 +56,6 @@ tid_t process_execute (const char *cmd_line)
   struct list_elem* e = list_begin (&cur->child_processes);
   while (e != list_end (&cur->child_processes)) {
     struct child_process* child = list_entry (e, struct child_process, elem);
-    // printf("%d", child->tid);
     if (child->tid == tid) {
       sema_down(&child->load_sema);
       if (!child->successfully_loaded) {
@@ -88,6 +87,7 @@ static void start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
 
+  // Matthew Driving
   if (!thread_current()->cwd)
   {
     thread_current()->cwd = dir_open_root();

@@ -27,6 +27,7 @@ static void chdir(void* esp, struct intr_frame* f);
 static void readdir(void* esp, struct intr_frame* f);
 static void isdir(void* esp, struct intr_frame* f);
 static void inumber(void* esp, struct intr_frame* f);
+static void mkdir(struct intr_frame* f, char* dir_name);
 
 struct lock file_lock;
 
@@ -153,16 +154,19 @@ static void syscall_handler (struct intr_frame *f UNUSED)
 
   } else if (syscall_number == SYS_CLOSE) {
     close(esp);
+
+  // Varun Driving
   } else if (syscall_number == SYS_MKDIR) {
     char* dir_name = *(char**) esp;
     if (!valid_pointer (dir_name)) {
       thread_exit (-1);
       return;
     }
-    f->eax = filesys_create(dir_name, 0, true);
+    mkdir(f, dir_name);
   } else if (syscall_number == SYS_READDIR) {
     readdir(esp, f);
 
+  // Matthew Driving
   } else if (syscall_number == SYS_ISDIR) {
     isdir(esp, f);
 
@@ -332,10 +336,12 @@ static void close(void* esp) {
   }
 }
 
+// Varun Driving
+// functions to perform cwd change
 static void chdir(void* esp, struct intr_frame* f) {
   char* dir_name = *(char**) esp;
   // lock_acquire(&file_lock);
-  if (filesys_chdir(dir_name)) {
+  if (change_directory(dir_name)) {
      f->eax = true;
   } else {
     f->eax = -1;
@@ -343,6 +349,8 @@ static void chdir(void* esp, struct intr_frame* f) {
   // lock_release(&file_lock);
 }
 
+// Varun Driving
+// function to perform a read of directory
 static void readdir(void* esp, struct intr_frame* f) {
   int fd = *(int*) esp;
   char* name = *(char**)((char*) esp + 4);
@@ -361,6 +369,8 @@ static void readdir(void* esp, struct intr_frame* f) {
   }
 }
 
+// Matthew Driving
+// function to check if file is directory
 static void isdir(void* esp, struct intr_frame* f) {
   int fd = *(int*) esp;
   struct file* file = thread_current()->fdt[fd];
@@ -372,6 +382,8 @@ static void isdir(void* esp, struct intr_frame* f) {
   }
 }
 
+// Varun Driving
+// function to get inumber of a file
 static void inumber(void* esp, struct intr_frame* f) {
   int fd = *(int*) esp;
   struct file* file = thread_current()->fdt[fd];
@@ -385,4 +397,10 @@ static void inumber(void* esp, struct intr_frame* f) {
   } else {
     f->eax = -1;
   }
+}
+
+// Matthew Driving
+// function to perform mkdir
+static void mkdir(struct intr_frame* f, char* dir_name) {
+  f->eax = filesys_create(dir_name, 0, true);
 }

@@ -38,7 +38,6 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
 {
   struct dir *dir;
   char *token, *next_token, *save_ptr;
-  // printf("%s", path);
 
   if (strlen(path) == 0) {
     return NULL;
@@ -52,7 +51,6 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
       dir = dir_open_root ();
     }
     else {
-      // dir = dir_open_root ();
       dir = dir_reopen (thread_current ()->cwd);
     }
   }
@@ -69,6 +67,7 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
       break;
 
     struct inode *inode;
+
     // dir will not change
     if (strcmp(token, ".") == 0) {
       token = next_token;
@@ -92,10 +91,10 @@ static struct dir *get_parent_directory (const char *path, char *file_name)
   return dir;
 }
 
-// TODO: move to syscall.c?
-bool filesys_chdir (const char *name)
+/*changed cwd to name*/
+bool change_directory (const char *name)
 {
-
+  // Matthew Driving
   char file_name[NAME_MAX + 1];
   struct dir *dir = get_parent_directory(name, file_name);
 
@@ -115,30 +114,12 @@ bool filesys_chdir (const char *name)
    or if internal memory allocation fails. */
 bool filesys_create (const char *name, off_t initial_size, bool is_dir)
 {
+  // Varun Driving
   block_sector_t inode_sector = 0;
   char file_name[NAME_MAX + 1];
-  // struct dir dir* = dir_open_root ();
   struct dir *dir = get_parent_directory (name, file_name);
 
-  // bool success = true;
-  // if (dir == NULL) {
-  //   success = false;
-  // }
-  // if (!free_map_allocate (1, &inode_sector)) {
-  //   success = false;
-  // }
-
-  // if (!inode_create (inode_sector, initial_size, is_dir)) {
-  //   success = false;
-  // }
-
-  // if (!dir_add (dir, file_name, inode_sector)) {
-  //   success = false;
-  // }
-
-  // TODO: are we calling free_map_allocate twice?
   bool success = (dir != NULL && free_map_allocate (1, &inode_sector) &&
-                  // TODO: do we need to modify any of the inode methods?
                   inode_create (inode_sector, initial_size, is_dir) &&
                   dir_add (dir, file_name, inode_sector));
   if (!success && inode_sector != 0)
@@ -155,7 +136,7 @@ bool filesys_create (const char *name, off_t initial_size, bool is_dir)
    or if an internal memory allocation fails. */
 struct file *filesys_open (const char *name)
 {
-  // TODO: check if length is 0?
+  // Matthew Driving
   struct inode *inode = NULL;
   char file_name[NAME_MAX + 1];
   struct dir* dir = get_parent_directory(name, file_name);
@@ -182,6 +163,7 @@ struct file *filesys_open (const char *name)
    or if an internal memory allocation fails. */
 bool filesys_remove (const char *name)
 {
+  // Varun Driving
   // edge case, should not be able to remove root
   if (strcmp("/", name) == 0) {
     return false;

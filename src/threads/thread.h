@@ -108,6 +108,7 @@ struct thread
   struct file* fdt[128];
   struct file* exe_file;
 
+   // Matthew Driving
   struct dir *cwd;
 
 #ifdef USERPROG
